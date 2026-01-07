@@ -17,6 +17,7 @@ export default function Signup(){
   const [submitted, setSubmitted] = useState(false)
   const [accessCode, setAccessCode] = useState('')
   const [userId, setUserId] = useState(null)
+  const [locked, setLocked] = useState(false)
   const nav=useNavigate()
 
   const slotCfg = useMemo(() => SLOTS.find(s => s.key === slot), [slot])
@@ -56,6 +57,7 @@ export default function Signup(){
 
       setName(u.name)
       setUserId(u.id)
+      setLocked(u.is_locked || false)
       
       const loadedPicks = {}
       up.forEach(pick => {
@@ -205,7 +207,16 @@ export default function Signup(){
               </div>
             )}
 
-            <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${submitted ? 'opacity-50 pointer-events-none' : ''}`}>
+
+
+            {locked && (
+              <div className="mb-6 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative">
+                <strong className="font-bold">Picks Locked. </strong>
+                <span className="block sm:inline">Your picks have been locked by the admin and cannot be edited.</span>
+              </div>
+            )}
+
+            <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${submitted || locked ? 'opacity-50 pointer-events-none' : ''}`}>
               <div>
                 <label className="text-sm font-semibold">Your Name</label>
                 <input
@@ -213,7 +224,7 @@ export default function Signup(){
                   value={name}
                   onChange={e=>setName(e.target.value)}
                   placeholder="e.g., Kartik"
-                  disabled={submitted}
+                  disabled={submitted || locked}
                 />
               </div>
               <div>
@@ -222,7 +233,7 @@ export default function Signup(){
                   className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={slot}
                   onChange={e=>setSlot(e.target.value)}
-                  disabled={submitted}
+                  disabled={submitted || locked}
                 >
                   {SLOTS.map(s => <option key={s.key} value={s.key}>{s.key}</option>)}
                 </select>
@@ -241,7 +252,7 @@ export default function Signup(){
             {loading ? (
               <div className="mt-5 text-gray-600">Loading teams…</div>
             ) : (
-              <div className={`mt-5 grid grid-cols-1 md:grid-cols-2 gap-3 ${submitted ? 'opacity-50 pointer-events-none' : ''}`}>
+              <div className={`mt-5 grid grid-cols-1 md:grid-cols-2 gap-3 ${submitted || locked ? 'opacity-50 pointer-events-none' : ''}`}>
                 {teams.map(t => {
                   const teamPicked = pickedTeamIds.has(t.id)
                   const eligible = players.filter(p => p.team_id === t.id && slotCfg.allowed.includes(p.position))
@@ -279,7 +290,7 @@ export default function Signup(){
               </div>
             )}
 
-            {!submitted && (
+            {!submitted && !locked && (
               <button
                 onClick={submit}
                 disabled={saving || Object.keys(picks).length < 14}

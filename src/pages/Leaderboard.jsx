@@ -23,7 +23,7 @@ export default function Leaderboard() {
 
   async function loadLeaderboard() {
     setLoading(true)
-    const ures = await supabase.from('users').select('id,name')
+    const ures = await supabase.from('users').select('id,name,is_locked')
     const list = ures.data || []
 
     const ranked = []
@@ -91,6 +91,25 @@ export default function Leaderboard() {
     }
   }
 
+  async function setGlobalLock(locked) {
+    if (!confirm(`Are you sure you want to ${locked ? 'LOCK' : 'UNLOCK'} ALL picks?`)) return
+    setLoading(true)
+    
+    // Using a filter that matches everything to allow "bulk" update if RLS permits
+    // Assuming UUIDs, neq 000... is a safe "all" filter
+    const { error } = await supabase
+      .from('users')
+      .update({ is_locked: locked })
+      .neq('id', '00000000-0000-0000-0000-000000000000')
+
+    if (!error) {
+      setUsers(users.map(u => ({ ...u, is_locked: locked })))
+    } else {
+      alert('Error updating locks: ' + error.message)
+    }
+    setLoading(false)
+  }
+
   const weekTotal = week =>
     rows.reduce((s, r) => {
       const ps = r.stats.find(x => x.week === week)
@@ -102,6 +121,20 @@ export default function Leaderboard() {
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">Leaderboard</h1>
         <div className="flex gap-4">
+          <div className="flex gap-2 mr-4">
+            <button 
+              onClick={() => setGlobalLock(true)}
+              className="px-3 py-1 bg-red-100 text-red-700 rounded text-xs font-bold hover:bg-red-200"
+            >
+              Lock All
+            </button>
+            <button 
+              onClick={() => setGlobalLock(false)}
+              className="px-3 py-1 bg-green-100 text-green-700 rounded text-xs font-bold hover:bg-green-200"
+            >
+              Unlock All
+            </button>
+          </div>
           <Link to="/signup" className="text-blue-600 underline">
             Join Pool
           </Link>
@@ -129,6 +162,7 @@ export default function Leaderboard() {
               <span>#{i + 1} {u.name}</span>
               <div className="flex items-center gap-3">
                 <span>{u.total.toFixed(1)}</span>
+                {u.is_locked && <span title="Locked">🔒</span>}
                 <span
                   onClick={(e) => deleteUser(e, u)}
                   className="text-gray-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition"
