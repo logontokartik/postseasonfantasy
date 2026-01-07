@@ -15,6 +15,8 @@ export default function Signup(){
   const [loading,setLoading]=useState(true)
   const [saving,setSaving]=useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [accessCode, setAccessCode] = useState('')
+  const [userId, setUserId] = useState(null)
   const nav=useNavigate()
 
   const slotCfg = useMemo(() => SLOTS.find(s => s.key === slot), [slot])
@@ -41,6 +43,36 @@ export default function Signup(){
     setPicks(updated)
   }
 
+  async function loadPicks() {
+    if (!accessCode.trim()) return
+    setLoading(true)
+    setError('')
+    try {
+      const { data: u, error: e1 } = await supabase.from('users').select('*').eq('id', accessCode.trim()).single()
+      if (e1 || !u) throw new Error('Invalid Access Code')
+
+      const { data: up, error: e2 } = await supabase.from('user_picks').select('*, players(*), teams(*)').eq('user_id', u.id)
+      if (e2) throw e2
+
+      setName(u.name)
+      setUserId(u.id)
+      
+      const loadedPicks = {}
+      up.forEach(pick => {
+        loadedPicks[pick.slot] = {
+          ...pick.players,
+          team_id: pick.team_id
+        }
+      })
+      setPicks(loadedPicks)
+      setSubmitted(false) // Allow editing
+    } catch (e) {
+      setError('Could not load picks. Check your code.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function submit(){
     setError('')
     if (!name.trim()) { setError('Please enter your name'); return }
@@ -48,12 +80,27 @@ export default function Signup(){
     if(err){ setError(err); return }
 
     setSaving(true)
+    setSaving(true)
     try{
-      const {data:user, error:e1} = await supabase.from('users').insert({ name: name.trim() }).select().single()
-      if (e1) throw e1
+      let uid = userId
+
+      if (userId) {
+        // Update existing
+        const { error: e1 } = await supabase.from('users').update({ name: name.trim() }).eq('id', userId)
+        if (e1) throw e1
+        // Delete old picks
+        const { error: e2 } = await supabase.from('user_picks').delete().eq('user_id', userId)
+        if (e2) throw e2
+      } else {
+        // Create new
+        const {data:user, error:e1} = await supabase.from('users').insert({ name: name.trim() }).select().single()
+        if (e1) throw e1
+        uid = user.id
+        setUserId(uid)
+      }
 
       const rows = SLOTS.map(s => ({
-        user_id: user.id,
+        user_id: uid,
         slot: s.key,
         player_id: picks[s.key].id,
         team_id: picks[s.key].team_id
@@ -129,7 +176,32 @@ export default function Signup(){
             {submitted && (
               <div className="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
                 <strong className="font-bold">Success! </strong>
-                <span className="block sm:inline">Your roster has been submitted. You can now print or save your picks.</span>
+                <span className="block sm:inline">Your roster has been submitted.</span>
+                <div className="mt-2 font-mono bg-white p-2 rounded border border-green-200 text-center select-all">
+                  Access Code: <strong>{userId}</strong>
+                </div>
+                <div className="mt-1 text-xs">Save this code! You can use it to load and edit your picks later.</div>
+              </div>
+            )}
+
+            {!userId && !submitted && (
+              <div className="mb-6 bg-blue-50 border border-blue-200 p-4 rounded-xl flex gap-2 items-end">
+                <div className="flex-1">
+                  <label className="text-xs font-bold text-blue-800 uppercase">Have an access code?</label>
+                  <input 
+                    value={accessCode}
+                    onChange={e => setAccessCode(e.target.value)}
+                    placeholder="Paste your code here..."
+                    className="w-full mt-1 px-3 py-2 border rounded-lg text-sm"
+                  />
+                </div>
+                <button 
+                  onClick={loadPicks}
+                  disabled={!accessCode}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg disabled:opacity-50"
+                >
+                  Load
+                </button>
               </div>
             )}
 
@@ -213,7 +285,7 @@ export default function Signup(){
                 disabled={saving || Object.keys(picks).length < 14}
                 className="mt-5 w-full rounded-xl bg-blue-600 text-white font-semibold py-3 disabled:opacity-60"
               >
-                {saving ? 'Submitting…' : Object.keys(picks).length < 14 ? `Pick ${14 - Object.keys(picks).length} more` : 'Submit (Lock Picks)'}
+                {saving ? 'Submitting…' : Object.keys(picks).length < 14 ? `Pick ${14 - Object.keys(picks).length} more` : (userId ? 'Update Picks' : 'Submit (Lock Picks)')}
               </button>
             )}
 
