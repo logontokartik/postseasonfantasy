@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { calculateScore } from '../utils/scoring'
 import { useAdminAuth } from '../context/AdminAuth'
@@ -76,7 +77,12 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
-      <h1 className="text-2xl font-bold mb-4">Admin Scoring</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold">Admin Scoring</h1>
+        <Link to="/leaderboard" className="text-blue-600 underline">
+          Leaderboard
+        </Link>
+      </div>
 
       {/* WEEK SELECTOR */}
       <div className="mb-4">

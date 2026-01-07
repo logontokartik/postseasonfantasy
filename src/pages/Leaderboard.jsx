@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { calculateScore } from '../utils/scoring'
+import LoadingSpinner from '../components/LoadingSpinner'
 
 const WEEKS = [
   { key: 'wildcard', label: 'Wild Card' },
@@ -14,12 +15,14 @@ export default function Leaderboard() {
   const [users, setUsers] = useState([])
   const [selected, setSelected] = useState(null)
   const [rows, setRows] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadLeaderboard()
   }, [])
 
   async function loadLeaderboard() {
+    setLoading(true)
     const ures = await supabase.from('users').select('id,name')
     const list = ures.data || []
 
@@ -48,6 +51,7 @@ export default function Leaderboard() {
 
     ranked.sort((a, b) => b.total - a.total)
     setUsers(ranked)
+    setLoading(false)
   }
 
   async function selectUser(u) {
@@ -91,7 +95,10 @@ export default function Leaderboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-5 gap-4">
+      {loading ? (
+        <LoadingSpinner />
+      ) : (
+        <div className="grid grid-cols-5 gap-4">
         {/* LEADERBOARD */}
         <div className="bg-white rounded-xl p-4 shadow">
           <h2 className="font-bold mb-2">Leaderboard</h2>
@@ -139,6 +146,7 @@ export default function Leaderboard() {
           </div>
         ))}
       </div>
+      )}
     </div>
   )
 }
