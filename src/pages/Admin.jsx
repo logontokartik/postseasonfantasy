@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { calculateScore } from '../utils/scoring'
+import { useAdminAuth } from '../context/AdminAuth'
 
 const WEEKS = [
   { key: 'wildcard', label: 'Wild Card' },

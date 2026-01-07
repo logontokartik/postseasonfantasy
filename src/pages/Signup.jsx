@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../supabase'
 import { SLOTS } from '../data/positions'
 import { validateRoster } from '../utils/validatePicks'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 
 export default function Signup(){
   const [name,setName]=useState('')
@@ -78,7 +78,10 @@ export default function Signup(){
               Pick 14 slots with <span className="font-semibold">one player per team</span>. Re-clicking a team moves that team’s pick to the currently selected slot.
             </p>
           </div>
-          <a className="text-sm underline text-blue-700" href="/leaderboard">View Leaderboard</a>
+          <div className="flex flex-col items-end">
+            <Link className="text-sm underline text-blue-700" to="/leaderboard">View Leaderboard</Link>
+            <Link className="text-xs underline text-gray-500 mt-1" to="/admin">Admin</Link>
+          </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">

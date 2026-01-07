@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { calculateScore } from '../utils/scoring'
 
@@ -78,7 +79,17 @@ export default function Leaderboard() {
 
   return (
     <div className="w-full px-6 bg-gray-100">
-      <h1 className="text-2xl font-bold mb-4">Leaderboard</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold">Leaderboard</h1>
+        <div className="flex gap-4">
+          <Link to="/signup" className="text-blue-600 underline">
+            Join Pool
+          </Link>
+          <Link to="/admin" className="text-gray-500 underline text-sm">
+            Admin
+          </Link>
+        </div>
+      </div>
 
       <div className="grid grid-cols-5 gap-4">
         {/* LEADERBOARD */}
