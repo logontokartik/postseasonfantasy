@@ -60,6 +60,44 @@ export default function Signup(){
       const { error:e2 } = await supabase.from('user_picks').insert(rows)
       if (e2) throw e2
 
+      // Insert into player_stats if not exists
+      const playerIds = Object.values(picks).map(p => p.id)
+      const weeks = ['wildcard', 'divisional', 'conference', 'superbowl']
+      
+      // 1. Get existing stats for these players
+      const { data: existingStats } = await supabase
+        .from('player_stats')
+        .select('player_id, week')
+        .in('player_id', playerIds)
+
+      // 2. Find missing
+      const toInsert = []
+      for (const pid of playerIds) {
+        for (const w of weeks) {
+          const exists = existingStats?.some(s => s.player_id === pid && s.week === w)
+          if (!exists) {
+            toInsert.push({
+              player_id: pid,
+              week: w,
+              catches: 0,
+              pass_yards: 0,
+              rush_rec_yards: 0,
+              tds: 0,
+              turnovers: 0,
+              two_pt: 0,
+              misc_td: 0,
+              return_yards: 0
+            })
+          }
+        }
+      }
+
+      // 3. Insert missing
+      if (toInsert.length > 0) {
+        const { error: e3 } = await supabase.from('player_stats').insert(toInsert)
+        if (e3) console.error('Error inserting stats:', e3) // Non-fatal, just log
+      }
+
       nav('/leaderboard')
     }catch(e){
       setError(e?.message || 'Signup failed. Check Supabase permissions/keys.')
