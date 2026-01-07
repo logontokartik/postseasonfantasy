@@ -75,6 +75,22 @@ export default function Leaderboard() {
     setRows(merged)
   }
 
+  async function deleteUser(e, u) {
+    e.stopPropagation()
+    if (!confirm(`Are you sure you want to delete ${u.name}? This cannot be undone.`)) return
+
+    // Delete picks first (cascade usually handles this but being safe)
+    await supabase.from('user_picks').delete().eq('user_id', u.id)
+    // Delete user
+    await supabase.from('users').delete().eq('id', u.id)
+
+    setUsers(users.filter(x => x.id !== u.id))
+    if (selected?.id === u.id) {
+      setSelected(null)
+      setRows([])
+    }
+  }
+
   const weekTotal = week =>
     rows.reduce((s, r) => {
       const ps = r.stats.find(x => x.week === week)
@@ -106,12 +122,21 @@ export default function Leaderboard() {
             <button
               key={u.id}
               onClick={() => selectUser(u)}
-              className={`w-full text-left py-2 ${
+              className={`w-full text-left py-2 flex justify-between items-center group ${
                 selected?.id === u.id ? 'font-bold' : ''
               }`}
             >
-              #{i + 1} {u.name}
-              <span className="float-right">{u.total.toFixed(1)}</span>
+              <span>#{i + 1} {u.name}</span>
+              <div className="flex items-center gap-3">
+                <span>{u.total.toFixed(1)}</span>
+                <span
+                  onClick={(e) => deleteUser(e, u)}
+                  className="text-gray-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition"
+                  title="Delete User"
+                >
+                  🗑️
+                </span>
+              </div>
             </button>
           ))}
         </div>
