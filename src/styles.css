@@ -5,3 +5,41 @@
 
 /* Small, pleasant defaults */
 html, body { height: 100%; }
+
+@media print {
+  /* Hide everything by default */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only the sidebar (selections) */
+  .lg\:col-span-2, .lg\:col-span-2 * {
+    display: none !important;
+  }
+
+  /* Target the sidebar container specifically */
+  .bg-white.rounded-2xl.shadow.p-4:last-child,
+  .bg-white.rounded-2xl.shadow.p-4:last-child * {
+    visibility: visible;
+    position: static;
+  }
+
+  .bg-white.rounded-2xl.shadow.p-4:last-child {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  /* Hide the print button itself (handled by class but ensuring here) */
+  button {
+    display: none !important;
+  }
+  
+  /* Hide header links */
+  a {
+    display: none !important;
+  }
+}

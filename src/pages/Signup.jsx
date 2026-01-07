@@ -79,7 +79,6 @@ export default function Signup(){
             </p>
           </div>
           <div className="flex flex-col items-end">
-            <Link className="text-sm underline text-blue-700" to="/leaderboard">View Leaderboard</Link>
             <Link className="text-xs underline text-gray-500 mt-1" to="/admin">Admin</Link>
           </div>
         </div>
@@ -188,9 +187,17 @@ export default function Signup(){
                 </div>
               ))}
             </div>
-            <div className="mt-4 text-xs text-gray-500">
+            <div className="mt-4 text-xs text-gray-500 print:hidden">
               Change slot, then click a player to place/move them.
             </div>
+
+            <button
+              onClick={() => window.print()}
+              disabled={Object.keys(picks).length < 14}
+              className="mt-4 w-full rounded-xl border-2 border-blue-600 text-blue-600 font-semibold py-2 disabled:opacity-50 disabled:border-gray-300 disabled:text-gray-400 hover:bg-blue-50 transition print:hidden"
+            >
+              Print / Save Roster
+            </button>
           </div>
         </div>
       </div>
