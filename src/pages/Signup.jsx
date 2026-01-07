@@ -14,6 +14,7 @@ export default function Signup(){
   const [error,setError]=useState('')
   const [loading,setLoading]=useState(true)
   const [saving,setSaving]=useState(false)
+  const [submitted, setSubmitted] = useState(false)
   const nav=useNavigate()
 
   const slotCfg = useMemo(() => SLOTS.find(s => s.key === slot), [slot])
@@ -98,7 +99,8 @@ export default function Signup(){
         if (e3) console.error('Error inserting stats:', e3) // Non-fatal, just log
       }
 
-      nav('/leaderboard')
+      setSubmitted(true)
+      window.scrollTo(0, 0)
     }catch(e){
       setError(e?.message || 'Signup failed. Check Supabase permissions/keys.')
     }finally{
@@ -124,7 +126,14 @@ export default function Signup(){
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Main */}
           <div className="lg:col-span-2 bg-white rounded-2xl shadow p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {submitted && (
+              <div className="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
+                <strong className="font-bold">Success! </strong>
+                <span className="block sm:inline">Your roster has been submitted. You can now print or save your picks.</span>
+              </div>
+            )}
+
+            <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${submitted ? 'opacity-50 pointer-events-none' : ''}`}>
               <div>
                 <label className="text-sm font-semibold">Your Name</label>
                 <input
@@ -132,6 +141,7 @@ export default function Signup(){
                   value={name}
                   onChange={e=>setName(e.target.value)}
                   placeholder="e.g., Kartik"
+                  disabled={submitted}
                 />
               </div>
               <div>
@@ -140,6 +150,7 @@ export default function Signup(){
                   className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={slot}
                   onChange={e=>setSlot(e.target.value)}
+                  disabled={submitted}
                 >
                   {SLOTS.map(s => <option key={s.key} value={s.key}>{s.key}</option>)}
                 </select>
@@ -158,7 +169,7 @@ export default function Signup(){
             {loading ? (
               <div className="mt-5 text-gray-600">Loading teams…</div>
             ) : (
-              <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className={`mt-5 grid grid-cols-1 md:grid-cols-2 gap-3 ${submitted ? 'opacity-50 pointer-events-none' : ''}`}>
                 {teams.map(t => {
                   const teamPicked = pickedTeamIds.has(t.id)
                   const eligible = players.filter(p => p.team_id === t.id && slotCfg.allowed.includes(p.position))
@@ -196,13 +207,15 @@ export default function Signup(){
               </div>
             )}
 
-            <button
-              onClick={submit}
-              disabled={saving || Object.keys(picks).length < 14}
-              className="mt-5 w-full rounded-xl bg-blue-600 text-white font-semibold py-3 disabled:opacity-60"
-            >
-              {saving ? 'Submitting…' : Object.keys(picks).length < 14 ? `Pick ${14 - Object.keys(picks).length} more` : 'Submit (Lock Picks)'}
-            </button>
+            {!submitted && (
+              <button
+                onClick={submit}
+                disabled={saving || Object.keys(picks).length < 14}
+                className="mt-5 w-full rounded-xl bg-blue-600 text-white font-semibold py-3 disabled:opacity-60"
+              >
+                {saving ? 'Submitting…' : Object.keys(picks).length < 14 ? `Pick ${14 - Object.keys(picks).length} more` : 'Submit (Lock Picks)'}
+              </button>
+            )}
 
             <div className="mt-2 text-xs text-gray-500">
               Note: This app assumes your Supabase has teams/players seeded and RLS allows inserts for `users` and `user_picks`.
