@@ -198,10 +198,10 @@ export default function Signup(){
 
             <button
               onClick={submit}
-              disabled={saving}
+              disabled={saving || Object.keys(picks).length < 14}
               className="mt-5 w-full rounded-xl bg-blue-600 text-white font-semibold py-3 disabled:opacity-60"
             >
-              {saving ? 'Submitting…' : 'Submit (Lock Picks)'}
+              {saving ? 'Submitting…' : Object.keys(picks).length < 14 ? `Pick ${14 - Object.keys(picks).length} more` : 'Submit (Lock Picks)'}
             </button>
 
             <div className="mt-2 text-xs text-gray-500">
