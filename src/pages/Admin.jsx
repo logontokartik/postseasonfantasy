@@ -5,7 +5,7 @@ import { calculateScore } from '../utils/scoring'
 import { useAdminAuth } from '../context/AdminAuth'
 import { 
   Container, Title, Card, Table, Stack, Box, Badge, 
-  Tabs, NumberInput, SegmentedControl, Text
+  Tabs, NumberInput, SegmentedControl, Text, Button, Group
 } from '@mantine/core'
 
 const WEEKS = [
@@ -34,7 +34,8 @@ const STAT_FIELDS = [
 export default function Admin() {
   const [week, setWeek] = useState('wildcard')
   const [rows, setRows] = useState([])
-  const [saving, setSaving] = useState(null)
+  const [modifiedRows, setModifiedRows] = useState(new Set())
+  const [saving, setSaving] = useState(false)
   const nav = useNavigate()
 
   useEffect(() => {
@@ -71,23 +72,133 @@ export default function Admin() {
   .eq('week', week)
   .order('players(name)', { ascending: true })
     setRows(res.data || [])
+    setModifiedRows(new Set())
   }
 
-  async function updateStat(id, field, value) {
-    setSaving(id + field)
-
-    await supabase
-      .from('player_stats')
-      .update({ [field]: Number(value) })
-      .eq('id', id)
-
+  function updateStat(id, field, value) {
     setRows(r =>
       r.map(row =>
         row.id === id ? { ...row, [field]: Number(value) } : row
       )
     )
+    setModifiedRows(prev => new Set(prev).add(id))
+  }
 
-    setSaving(null)
+  async function saveStats() {
+    setSaving(true)
+    try {
+      const updates = rows
+        .filter(r => modifiedRows.has(r.id))
+        .map(r => ({
+          id: r.id,
+          catches: r.catches,
+          pass_yards: r.pass_yards,
+          rush_rec_yards: r.rush_rec_yards,
+          tds: r.tds,
+          turnovers: r.turnovers,
+          two_pt: r.two_pt,
+          misc_td: r.misc_td,
+          return_yards: r.return_yards,
+          sacks: r.sacks,
+          def_turnovers: r.def_turnovers,
+          safety: r.safety,
+          points_allowed: r.points_allowed,
+          fg_yards: r.fg_yards
+        }))
+
+      for (const update of updates) {
+        const { id, ...stats } = update
+        await supabase.from('player_stats').update(stats).eq('id', id)
+      }
+
+      setModifiedRows(new Set())
+      alert('Stats saved successfully!')
+    } catch (e) {
+      alert('Error saving stats: ' + e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function downloadCSVTemplate() {
+    // Create CSV header
+    const headers = ['Player', 'Team', 'Position', ...STAT_FIELDS.map(f => f.label)]
+    
+    // Create CSV rows
+    const csvRows = rows.map(r => [
+      r.players?.name || '',
+      r.players?.teams?.name || '',
+      r.players?.position || '',
+      ...STAT_FIELDS.map(f => r[f.key] ?? 0)
+    ])
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...csvRows.map(row => row.join(','))
+    ].join('\n')
+
+    // Create download
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `player_stats_${week}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function handleCSVImport(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const text = e.target?.result
+      if (typeof text !== 'string') return
+
+      try {
+        const lines = text.split('\n').filter(l => l.trim())
+        const headers = lines[0].split(',')
+        
+        // Find stat column indices
+        const statIndices = {}
+        STAT_FIELDS.forEach(f => {
+          const idx = headers.findIndex(h => h.trim() === f.label)
+          if (idx !== -1) statIndices[f.key] = idx
+        })
+
+        // Parse data rows
+        const updatedRows = [...rows]
+        for (let i = 1; i < lines.length; i++) {
+          const values = lines[i].split(',')
+          const playerName = values[0]?.trim()
+          
+          // Find matching row
+          const rowIndex = updatedRows.findIndex(r => r.players?.name === playerName)
+          if (rowIndex === -1) continue
+
+          // Update stats
+          STAT_FIELDS.forEach(f => {
+            const colIdx = statIndices[f.key]
+            if (colIdx !== undefined) {
+              const value = parseFloat(values[colIdx]) || 0
+              updatedRows[rowIndex] = { ...updatedRows[rowIndex], [f.key]: value }
+              setModifiedRows(prev => new Set(prev).add(updatedRows[rowIndex].id))
+            }
+          })
+        }
+
+        setRows(updatedRows)
+        alert(`CSV imported successfully! ${modifiedRows.size} players updated.`)
+      } catch (err) {
+        alert('Error parsing CSV: ' + err.message)
+      }
+    }
+    reader.readAsText(file)
+    
+    // Reset input so same file can be imported again
+    event.target.value = ''
   }
 
   return (
@@ -107,12 +218,47 @@ export default function Admin() {
         <Stack gap="md">
           <Title order={1} size="h2">Player Scoring</Title>
 
-          <SegmentedControl
-            value={week}
-            onChange={setWeek}
-            data={WEEKS.map(w => ({ value: w.key, label: w.label }))}
-            fullWidth
-          />
+          <Group justify="space-between">
+            <SegmentedControl
+              value={week}
+              onChange={setWeek}
+              data={WEEKS.map(w => ({ value: w.key, label: w.label }))}
+              style={{ flex: 1 }}
+            />
+            <Group gap="xs">
+              <Button 
+                onClick={downloadCSVTemplate}
+                variant="light"
+                color="blue"
+                size="md"
+              >
+                Download Template
+              </Button>
+              <Button 
+                component="label"
+                variant="light"
+                color="cyan"
+                size="md"
+              >
+                Import CSV
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCSVImport}
+                  style={{ display: 'none' }}
+                />
+              </Button>
+              <Button 
+                onClick={saveStats} 
+                disabled={modifiedRows.size === 0 || saving}
+                loading={saving}
+                size="md"
+                color="green"
+              >
+                Save Stats {modifiedRows.size > 0 && `(${modifiedRows.size})`}
+              </Button>
+            </Group>
+          </Group>
 
           <Card shadow="sm" radius="md" withBorder p="md">
             <Box style={{ overflowX: 'auto' }}>
