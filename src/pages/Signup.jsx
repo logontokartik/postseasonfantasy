@@ -37,7 +37,6 @@ export default function Signup(){
   function pickPlayer(p){
     setError('')
     const updated = { ...picks }
-    // If team already picked, allow "change slot": remove previous slot
     const existingSlot = Object.keys(updated).find(k => updated[k]?.team_id === p.team_id)
     if (existingSlot) delete updated[existingSlot]
     updated[slot] = p
@@ -67,7 +66,7 @@ export default function Signup(){
         }
       })
       setPicks(loadedPicks)
-      setSubmitted(false) // Allow editing
+      setSubmitted(false)
     } catch (e) {
       setError('Could not load picks. Check your code.')
     } finally {
@@ -82,19 +81,15 @@ export default function Signup(){
     if(err){ setError(err); return }
 
     setSaving(true)
-    setSaving(true)
     try{
       let uid = userId
 
       if (userId) {
-        // Update existing
         const { error: e1 } = await supabase.from('users').update({ name: name.trim() }).eq('id', userId)
         if (e1) throw e1
-        // Delete old picks
         const { error: e2 } = await supabase.from('user_picks').delete().eq('user_id', userId)
         if (e2) throw e2
       } else {
-        // Create new
         const {data:user, error:e1} = await supabase.from('users').insert({ name: name.trim() }).select().single()
         if (e1) throw e1
         uid = user.id
@@ -110,17 +105,14 @@ export default function Signup(){
       const { error:e2 } = await supabase.from('user_picks').insert(rows)
       if (e2) throw e2
 
-      // Insert into player_stats if not exists
       const playerIds = Object.values(picks).map(p => p.id)
       const weeks = ['wildcard', 'divisional', 'conference', 'superbowl']
       
-      // 1. Get existing stats for these players
       const { data: existingStats } = await supabase
         .from('player_stats')
         .select('player_id, week')
         .in('player_id', playerIds)
 
-      // 2. Find missing
       const toInsert = []
       for (const pid of playerIds) {
         for (const w of weeks) {
@@ -142,10 +134,9 @@ export default function Signup(){
         }
       }
 
-      // 3. Insert missing
       if (toInsert.length > 0) {
         const { error: e3 } = await supabase.from('player_stats').insert(toInsert)
-        if (e3) console.error('Error inserting stats:', e3) // Non-fatal, just log
+        if (e3) console.error('Error inserting stats:', e3)
       }
 
       setSubmitted(true)
@@ -164,11 +155,12 @@ export default function Signup(){
           <div>
             <h1 className="text-2xl font-bold">NFL Playoff Pool</h1>
             <p className="text-sm text-gray-600 mt-1">
-              Pick 14 slots with <span className="font-semibold">one player per team</span>. Re-clicking a team moves that team’s pick to the currently selected slot.
+              Pick 14 slots with <span className="font-semibold">one player per team</span>. Re-clicking a team moves that team's pick to the currently selected slot.
             </p>
           </div>
           <div className="flex flex-col items-end">
-            <Link className="text-xs underline text-gray-500 mt-1" to="/admin">Admin</Link>
+            <Link className="text-xs underline text-blue-600 mb-1" to="/help">Help / Rules</Link>
+            <Link className="text-xs underline text-gray-500" to="/admin">Admin</Link>
           </div>
         </div>
 
@@ -206,8 +198,6 @@ export default function Signup(){
                 </button>
               </div>
             )}
-
-
 
             {locked && (
               <div className="mb-6 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative">
@@ -282,7 +272,7 @@ export default function Signup(){
                         })}
                       </div>
                       <div className="mt-2 text-xs text-gray-500">
-                        Tip: team already picked? Click again to move that team’s player to the selected slot.
+                        Tip: team already picked? Click again to move that team's player to the selected slot.
                       </div>
                     </div>
                   )

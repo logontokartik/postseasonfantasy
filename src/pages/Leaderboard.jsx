@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { calculateScore } from '../utils/scoring'
-import LoadingSpinner from '../components/LoadingSpinner'
+import { 
+  Container, Title, Card, Button, Table, Stack, Box, Badge, Group, 
+  Tabs, Loader, ActionIcon, Grid, Text
+} from '@mantine/core'
+import { IconTrash } from '@tabler/icons-react'
 
 const WEEKS = [
   { key: 'wildcard', label: 'Wild Card' },
@@ -16,6 +20,7 @@ export default function Leaderboard() {
   const [selected, setSelected] = useState(null)
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
+  const nav = useNavigate()
 
   useEffect(() => {
     loadLeaderboard()
@@ -75,13 +80,10 @@ export default function Leaderboard() {
     setRows(merged)
   }
 
-  async function deleteUser(e, u) {
-    e.stopPropagation()
+  async function deleteUser(u) {
     if (!confirm(`Are you sure you want to delete ${u.name}? This cannot be undone.`)) return
 
-    // Delete picks first (cascade usually handles this but being safe)
     await supabase.from('user_picks').delete().eq('user_id', u.id)
-    // Delete user
     await supabase.from('users').delete().eq('id', u.id)
 
     setUsers(users.filter(x => x.id !== u.id))
@@ -95,8 +97,6 @@ export default function Leaderboard() {
     if (!confirm(`Are you sure you want to ${locked ? 'LOCK' : 'UNLOCK'} ALL picks?`)) return
     setLoading(true)
     
-    // Using a filter that matches everything to allow "bulk" update if RLS permits
-    // Assuming UUIDs, neq 000... is a safe "all" filter
     const { error } = await supabase
       .from('users')
       .update({ is_locked: locked })
@@ -117,95 +117,134 @@ export default function Leaderboard() {
     }, 0)
 
   return (
-    <div className="w-full px-6 bg-gray-100">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Leaderboard</h1>
-        <div className="flex gap-4">
-          <div className="flex gap-2 mr-4">
-            <button 
-              onClick={() => setGlobalLock(true)}
-              className="px-3 py-1 bg-red-100 text-red-700 rounded text-xs font-bold hover:bg-red-200"
-            >
-              Lock All
-            </button>
-            <button 
-              onClick={() => setGlobalLock(false)}
-              className="px-3 py-1 bg-green-100 text-green-700 rounded text-xs font-bold hover:bg-green-200"
-            >
-              Unlock All
-            </button>
-          </div>
-          <Link to="/signup" className="text-blue-600 underline">
-            Join Pool
-          </Link>
-          <Link to="/admin" className="text-gray-500 underline text-sm">
-            Admin
-          </Link>
-        </div>
-      </div>
+    <Box bg="gray.1" mih="100vh">
+      <Container size="xl" p="md">
+        <Card shadow="sm" radius="md" withBorder mb="md">
+          <Tabs defaultValue="leaderboard" variant="pills">
+            <Tabs.List mb="md">
+              <Tabs.Tab value="leaderboard" fz="lg" fw={600}>Leaderboard</Tabs.Tab>
+              <Tabs.Tab value="signup" fz="lg" fw={600} onClick={() => nav('/signup')}>Signup</Tabs.Tab>
+              <Tabs.Tab value="help" fz="lg" fw={600} onClick={() => nav('/help')}>Help / Rules</Tabs.Tab>
+              <Tabs.Tab value="admin" fz="lg" fw={600} onClick={() => nav('/admin')}>Admin</Tabs.Tab>
+            </Tabs.List>
+          </Tabs>
+        </Card>
 
-      {loading ? (
-        <LoadingSpinner />
-      ) : (
-        <div className="grid grid-cols-5 gap-4">
-        {/* LEADERBOARD */}
-        <div className="bg-white rounded-xl p-4 shadow">
-          <h2 className="font-bold mb-2">Leaderboard</h2>
-          {users.map((u, i) => (
-            <button
-              key={u.id}
-              onClick={() => selectUser(u)}
-              className={`w-full text-left py-2 flex justify-between items-center group ${
-                selected?.id === u.id ? 'font-bold' : ''
-              }`}
-            >
-              <span>#{i + 1} {u.name}</span>
-              <div className="flex items-center gap-3">
-                <span>{u.total.toFixed(1)}</span>
-                {u.is_locked && <span title="Locked">🔒</span>}
-                <span
-                  onClick={(e) => deleteUser(e, u)}
-                  className="text-gray-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition"
-                  title="Delete User"
-                >
-                  🗑️
-                </span>
-              </div>
-            </button>
-          ))}
-        </div>
+        <Stack gap="md">
+          <Group justify="space-between">
+            <Title order={1} size="h2">NFL Playoff Leaderboard</Title>
+            <Group gap="xs">
+              <Button size="sm" color="red" variant="light" onClick={() => setGlobalLock(true)}>
+                Lock All
+              </Button>
+              <Button size="sm" color="green" variant="light" onClick={() => setGlobalLock(false)}>
+                Unlock All
+              </Button>
+            </Group>
+          </Group>
 
-        {/* WEEK COLUMNS */}
-        {WEEKS.map(w => (
-          <div key={w.key} className="bg-white rounded-xl p-4 shadow">
-            <div className="font-bold mb-2 flex justify-between">
-              <span>{w.label}</span>
-              <span>{weekTotal(w.key).toFixed(1)}</span>
-            </div>
+          {loading ? (
+            <Group justify="center" p="xl">
+              <Loader />
+              <Text c="dimmed">Loading leaderboard…</Text>
+            </Group>
+          ) : (
+            <Grid gutter="md">
+              {/* Leaderboard List */}
+              <Grid.Col span={{ base: 12, lg: 3 }}>
+                <Card shadow="sm" radius="md" withBorder p="md">
+                  <Title order={3} size="h4" mb="md">Rankings</Title>
+                  <Stack gap="xs">
+                    {users.map((u, i) => (
+                      <Card
+                        key={u.id}
+                        bg={selected?.id === u.id ? 'blue.0' : 'white'}
+                        withBorder
+                        p="sm"
+                        radius="md"
+                        style={{ 
+                          cursor: 'pointer',
+                          borderColor: selected?.id === u.id ? 'var(--mantine-color-blue-3)' : undefined 
+                        }}
+                        onClick={() => selectUser(u)}
+                      >
+                        <Group justify="space-between" wrap="nowrap">
+                          <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                            <Badge size="sm" variant="filled">#{i + 1}</Badge>
+                            <Text size="sm" fw={selected?.id === u.id ? 700 : 500} truncate>
+                              {u.name}
+                            </Text>
+                            {u.is_locked && <Text size="xs">🔒</Text>}
+                          </Group>
+                          <Group gap="xs" wrap="nowrap">
+                            <Text size="sm" fw={600}>{u.total.toFixed(1)}</Text>
+                            <ActionIcon
+                              size="sm"
+                              color="red"
+                              variant="subtle"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                deleteUser(u)
+                              }}
+                            >
+                              <IconTrash size={16} />
+                            </ActionIcon>
+                          </Group>
+                        </Group>
+                      </Card>
+                    ))}
+                  </Stack>
+                </Card>
+              </Grid.Col>
 
-            {rows.map(r => {
-              const ps = r.stats.find(x => x.week === w.key)
-              const score = ps ? calculateScore(ps) : 0
+              {/* Week Breakdown */}
+              <Grid.Col span={{ base: 12, lg: 9 }}>
+                {!selected ? (
+                  <Card shadow="sm" radius="md" withBorder p="xl">
+                    <Text c="dimmed" ta="center">Select a user to view their weekly breakdown</Text>
+                  </Card>
+                ) : (
+                  <Card shadow="sm" radius="md" withBorder p="md">
+                    <Title order={3} size="h4" mb="md">
+                      {selected.name}'s Breakdown
+                    </Title>
+                    <Grid gutter="md">
+                      {WEEKS.map(w => (
+                        <Grid.Col key={w.key} span={{ base: 12, sm: 6, md: 3 }}>
+                          <Card bg="gray.0" withBorder p="md" radius="md">
+                            <Group justify="space-between" mb="sm">
+                              <Text fw={700} size="sm">{w.label}</Text>
+                              <Badge>{weekTotal(w.key).toFixed(1)}</Badge>
+                            </Group>
+                            <Stack gap="xs">
+                              {rows.map(r => {
+                                const ps = r.stats.find(x => x.week === w.key)
+                                const score = ps ? calculateScore(ps) : 0
 
-              return (
-                <div
-                  key={r.slot + w.key}
-                  className="flex justify-between text-sm py-1"
-                >
-                  <div>
-                    {r.players.name}
-                    <div className="text-xs text-gray-500">
-                      {r.teams.name}
-                    </div>
-                  </div>
-                  <div>{score.toFixed(1)}</div>
-                </div>
-              )
-            })}
-          </div>
-        ))}
-      </div>
-      )}
-    </div>
+                                return (
+                                  <Box key={r.slot + w.key}>
+                                    <Group justify="space-between" wrap="nowrap">
+                                      <Box style={{ minWidth: 0, flex: 1 }}>
+                                        <Text size="xs" truncate>{r.players.name}</Text>
+                                        <Text size="xs" c="dimmed" truncate>{r.teams.name}</Text>
+                                      </Box>
+                                      <Text size="xs" fw={600}>{score.toFixed(1)}</Text>
+                                    </Group>
+                                  </Box>
+                                )
+                              })}
+                            </Stack>
+                          </Card>
+                        </Grid.Col>
+                      ))}
+                    </Grid>
+                  </Card>
+                )}
+              </Grid.Col>
+            </Grid>
+          )}
+        </Stack>
+      </Container>
+    </Box>
   )
 }

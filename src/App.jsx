@@ -3,6 +3,7 @@ import Leaderboard from './pages/Leaderboard'
 import Admin from './pages/Admin'
 import AdminLogin from './pages/AdminLogin'
 import Signup from './pages/Signup'
+import Help from './pages/Help'
 import ProtectedAdminRoute from './components/ProtectedAdminRoute'
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
       />
       <Route path="/admin-login" element={<AdminLogin />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/help" element={<Help />} />
       <Route
         path="/admin"
         element={

@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { calculateScore } from '../utils/scoring'
 import { useAdminAuth } from '../context/AdminAuth'
+import { 
+  Container, Title, Card, Table, Stack, Box, Badge, 
+  Tabs, NumberInput, SegmentedControl, Text
+} from '@mantine/core'
 
 const WEEKS = [
   { key: 'wildcard', label: 'Wild Card' },
@@ -20,12 +24,18 @@ const STAT_FIELDS = [
   { key: 'two_pt', label: '2PT' },
   { key: 'misc_td', label: 'Misc TD' },
   { key: 'return_yards', label: 'Return Yds' },
+  { key: 'sacks', label: 'Sacks' },
+  { key: 'def_turnovers', label: 'Def TO' },
+  { key: 'safety', label: 'Safety' },
+  { key: 'points_allowed', label: 'PA' },
+  { key: 'fg_yards', label: 'FG Yds' },
 ]
 
 export default function Admin() {
   const [week, setWeek] = useState('wildcard')
   const [rows, setRows] = useState([])
   const [saving, setSaving] = useState(null)
+  const nav = useNavigate()
 
   useEffect(() => {
     load()
@@ -45,6 +55,11 @@ export default function Admin() {
     two_pt,
     misc_td,
     return_yards,
+    sacks,
+    def_turnovers,
+    safety,
+    points_allowed,
+    fg_yards,
     players (
       name,
       position,
@@ -76,84 +91,89 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Admin Scoring</h1>
-        <Link to="/leaderboard" className="text-blue-600 underline">
-          Leaderboard
-        </Link>
-      </div>
+    <Box bg="gray.1" mih="100vh">
+      <Container size="100%" p="md" style={{ maxWidth: '100%' }}>
+        <Card shadow="sm" radius="md" withBorder mb="md">
+          <Tabs defaultValue="admin" variant="pills">
+            <Tabs.List mb="md">
+              <Tabs.Tab value="admin" fz="lg" fw={600}>Admin Scoring</Tabs.Tab>
+              <Tabs.Tab value="leaderboard" fz="lg" fw={600} onClick={() => nav('/leaderboard')}>Leaderboard</Tabs.Tab>
+              <Tabs.Tab value="signup" fz="lg" fw={600} onClick={() => nav('/signup')}>Signup</Tabs.Tab>
+              <Tabs.Tab value="help" fz="lg" fw={600} onClick={() => nav('/help')}>Help / Rules</Tabs.Tab>
+            </Tabs.List>
+          </Tabs>
+        </Card>
 
-      {/* WEEK SELECTOR */}
-      <div className="mb-4">
-        <select
-          value={week}
-          onChange={e => setWeek(e.target.value)}
-          className="border rounded px-3 py-2"
-        >
-          {WEEKS.map(w => (
-            <option key={w.key} value={w.key}>
-              {w.label}
-            </option>
-          ))}
-        </select>
-      </div>
+        <Stack gap="md">
+          <Title order={1} size="h2">Player Scoring</Title>
 
-      {/* TABLE */}
-      <div className="overflow-x-auto bg-white rounded-xl shadow">
-        <table className="min-w-full text-sm border-collapse">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="p-2 text-left">Player</th>
-              <th className="p-2 text-left">Team</th>
-              {STAT_FIELDS.map(f => (
-                <th key={f.key} className="p-2 text-center">
-                  {f.label}
-                </th>
-              ))}
-              <th className="p-2 text-center font-bold">Score</th>
-            </tr>
-          </thead>
+          <SegmentedControl
+            value={week}
+            onChange={setWeek}
+            data={WEEKS.map(w => ({ value: w.key, label: w.label }))}
+            fullWidth
+          />
 
-          <tbody>
-            {rows.map(r => {
-              const score = calculateScore(r)
+          <Card shadow="sm" radius="md" withBorder p="md">
+            <Box style={{ overflowX: 'auto' }}>
+              <Table highlightOnHover striped withTableBorder withColumnBorders>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Player</Table.Th>
+                    <Table.Th>Team</Table.Th>
+                    {STAT_FIELDS.map(f => (
+                      <Table.Th key={f.key} style={{ textAlign: 'center', minWidth: 80 }}>
+                        {f.label}
+                      </Table.Th>
+                    ))}
+                    <Table.Th style={{ textAlign: 'center' }}>Score</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
 
-              return (
-                <tr key={r.id} className="border-t hover:bg-gray-50">
-                  <td className="p-2 font-medium">
-                    {r.players?.name}
-                    <div className="text-xs text-gray-500">
-                      {r.players?.position}
-                    </div>
-                  </td>
+                <Table.Tbody>
+                  {rows.map(r => {
+                    const score = calculateScore(r)
 
-                  <td className="p-2 text-gray-600">
-                    {r.players?.teams?.name}
-                  </td>
+                    return (
+                      <Table.Tr key={r.id}>
+                        <Table.Td>
+                          <Text size="sm" fw={500}>{r.players?.name}</Text>
+                          <Text size="xs" c="dimmed">{r.players?.position}</Text>
+                        </Table.Td>
 
-                  {STAT_FIELDS.map(f => (
-                    <td key={f.key} className="p-1 text-center">
-                      <input
-                        type="number"
-                        value={r[f.key]}
-                        onChange={e =>
-                          updateStat(r.id, f.key, e.target.value)
-                        }
-                        className="w-20 border rounded px-2 py-1 text-center"
-                      />
-                    </td>
-                  ))}
+                        <Table.Td>
+                          <Text size="sm" c="dimmed">{r.players?.teams?.name}</Text>
+                        </Table.Td>
 
-                  <td className="p-2 text-center font-bold">
-                    {score.toFixed(1)}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
+                        {STAT_FIELDS.map(f => (
+                          <Table.Td key={f.key} style={{ textAlign: 'center' }}>
+                            <NumberInput
+                              value={r[f.key] ?? 0}
+                              onChange={val => updateStat(r.id, f.key, val)}
+                              size="xs"
+                              style={{ width: 70 }}
+                              hideControls
+                              styles={{
+                                input: { textAlign: 'center' }
+                              }}
+                            />
+                          </Table.Td>
+                        ))}
+
+                        <Table.Td style={{ textAlign: 'center' }}>
+                          <Badge size="lg" variant="filled" color="blue">
+                            {score.toFixed(1)}
+                          </Badge>
+                        </Table.Td>
+                      </Table.Tr>
+                    )
+                  })}
+                </Table.Tbody>
+              </Table>
+            </Box>
+          </Card>
+        </Stack>
+      </Container>
+    </Box>
   )
 }
