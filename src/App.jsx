@@ -12,11 +12,7 @@ export default function App() {
       <Route path="/" element={<Navigate to="/signup" replace />} />
       <Route
         path="/leaderboard"
-        element={
-          <ProtectedAdminRoute>
-            <Leaderboard />
-          </ProtectedAdminRoute>
-        }
+        element={<Leaderboard />}
       />
       <Route path="/admin-login" element={<AdminLogin />} />
       <Route path="/signup" element={<Signup />} />

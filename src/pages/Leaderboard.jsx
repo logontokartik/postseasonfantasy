@@ -20,11 +20,33 @@ export default function Leaderboard() {
   const [selected, setSelected] = useState(null)
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
+  const [isLocked, setIsLocked] = useState(false)
+  const { isAuthenticated } = useAdminAuth()
   const nav = useNavigate()
 
   useEffect(() => {
-    loadLeaderboard()
+    checkLockStatus()
   }, [])
+
+  async function checkLockStatus() {
+    // Check if any users have locked picks
+    const { data } = await supabase
+      .from('users')
+      .select('is_locked')
+      .limit(1)
+    
+    const locked = data?.some(u => u.is_locked === true) || false
+    setIsLocked(locked)
+    
+    // If unlocked and not authenticated, redirect
+    if (!locked && !isAuthenticated) {
+      alert('Leaderboard is only available to admins while picks are unlocked.')
+      nav('/admin')
+      return
+    }
+    
+    loadLeaderboard()
+  }
 
   async function loadLeaderboard() {
     setLoading(true)
@@ -104,6 +126,7 @@ export default function Leaderboard() {
 
     if (!error) {
       setUsers(users.map(u => ({ ...u, is_locked: locked })))
+      setIsLocked(locked)
     } else {
       alert('Error updating locks: ' + error.message)
     }
@@ -133,14 +156,16 @@ export default function Leaderboard() {
         <Stack gap="md">
           <Group justify="space-between">
             <Title order={1} size="h2">NFL Playoff Leaderboard</Title>
-            <Group gap="xs">
-              <Button size="sm" color="red" variant="light" onClick={() => setGlobalLock(true)}>
-                Lock All
-              </Button>
-              <Button size="sm" color="green" variant="light" onClick={() => setGlobalLock(false)}>
-                Unlock All
-              </Button>
-            </Group>
+            {isAuthenticated && (
+              <Group gap="xs">
+                <Button size="sm" color="red" variant="light" onClick={() => setGlobalLock(true)}>
+                  Lock All
+                </Button>
+                <Button size="sm" color="green" variant="light" onClick={() => setGlobalLock(false)}>
+                  Unlock All
+                </Button>
+              </Group>
+            )}
           </Group>
 
           {loading ? (
@@ -178,17 +203,19 @@ export default function Leaderboard() {
                           </Group>
                           <Group gap="xs" wrap="nowrap">
                             <Text size="sm" fw={600}>{u.total.toFixed(1)}</Text>
-                            <ActionIcon
-                              size="sm"
-                              color="red"
-                              variant="subtle"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                deleteUser(u)
-                              }}
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
+                            {isAuthenticated && (
+                              <ActionIcon
+                                size="sm"
+                                color="red"
+                                variant="subtle"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  deleteUser(u)
+                                }}
+                              >
+                                <IconTrash size={16} />
+                              </ActionIcon>
+                            )}
                           </Group>
                         </Group>
                       </Card>

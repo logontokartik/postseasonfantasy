@@ -70,8 +70,22 @@ export default function Admin() {
     )
   `)
   .eq('week', week)
-  .order('players(name)', { ascending: true })
-    setRows(res.data || [])
+
+    // Custom sort: by team, then by position order
+    const positionOrder = { QB: 1, RB: 2, WR: 3, TE: 4, K: 5, DEF: 6 }
+    const sorted = (res.data || []).sort((a, b) => {
+      // First sort by team name
+      const teamA = a.players?.teams?.name || ''
+      const teamB = b.players?.teams?.name || ''
+      if (teamA !== teamB) return teamA.localeCompare(teamB)
+      
+      // Then sort by position
+      const posA = positionOrder[a.players?.position] || 99
+      const posB = positionOrder[b.players?.position] || 99
+      return posA - posB
+    })
+
+    setRows(sorted)
     setModifiedRows(new Set())
   }
 
