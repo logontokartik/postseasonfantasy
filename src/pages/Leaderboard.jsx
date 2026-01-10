@@ -160,7 +160,7 @@ export default function Leaderboard() {
           ) : (
             <Grid gutter="md" justify="center">
               {/* Leaderboard List */}
-              <Grid.Col span={{ base: 12, sm: 10, md: 8, lg: 6 }}>
+              <Grid.Col span={12}>
                 <Card shadow="sm" radius="md" withBorder p="md">
                   <Title order={3} size="h3" mb="md">Rankings</Title>
                   <Stack gap="sm">
@@ -180,7 +180,7 @@ export default function Leaderboard() {
                         <Group justify="space-between" wrap="nowrap">
                           <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
                             <Badge size="lg" variant="filled">#{i + 1}</Badge>
-                            <Text size="lg" fw={selected?.id === u.id ? 700 : 500} truncate>{u.name}</Text>
+                            <Title order={2} size="h2" fw={600} style={{ margin: 0 }}>{u.name}</Title>
                             {u.is_locked && <Text size="md">🔒</Text>}
                           </Group>
                           <Group gap="sm" wrap="nowrap">
@@ -214,59 +214,96 @@ export default function Leaderboard() {
       <Modal
         opened={modalOpened}
         onClose={() => setModalOpened(false)}
-        title={<Text size="xl" fw={700}>{selected?.name}'s Roster</Text>}
-        size="lg"
+        title={<Text size="xxl" fw={700}>{selected?.name}'s Roster</Text>}
+        size="xl"
+        fullScreen={{ base: true, sm: false }}
+        padding={0}
+        styles={{
+          body: { 
+            padding: '0',
+            height: '100%'
+          },
+          content: {
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column'
+          },
+          header: {
+            padding: '1.5rem',
+            borderBottom: '1px solid var(--mantine-color-gray-3)'
+          },
+          title: { fontSize: '1.75rem' }
+        }}
       >
-        <Stack gap="md">
-          <Select
-            label="Select Week"
-            value={selectedWeek}
-            onChange={setSelectedWeek}
-            data={[
-              { value: 'wildcard', label: 'Wild Card' },
-              { value: 'divisional', label: 'Divisional' },
-              { value: 'conference', label: 'Conference' },
-              { value: 'superbowl', label: 'Super Bowl' }
-            ]}
-          />
+        <Stack gap="0" style={{ height: '100%', flex: 1 }}>
+          <Box p="xl" style={{ borderBottom: '1px solid var(--mantine-color-gray-2)' }}>
+            <Select
+              label={<Text size="xl" fw={600}>Select Week</Text>}
+              value={selectedWeek}
+              onChange={setSelectedWeek}
+              size="xl"
+              styles={{
+                input: { fontSize: '1.25rem', padding: '1rem' },
+                label: { fontSize: '1.25rem', marginBottom: '0.5rem' }
+              }}
+              data={[
+                { value: 'wildcard', label: 'Wild Card' },
+                { value: 'divisional', label: 'Divisional' },
+                { value: 'conference', label: 'Conference' },
+                { value: 'superbowl', label: 'Super Bowl' }
+              ]}
+            />
+          </Box>
 
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Slot</Table.Th>
-                <Table.Th>Player</Table.Th>
-                <Table.Th>Team</Table.Th>
-                <Table.Th style={{ textAlign: 'right' }}>Score</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {rows.map(r => {
-                const score = r.stats ? calculateScore(r.stats) : 0
-                return (
-                  <Table.Tr key={r.slot}>
-                    <Table.Td>
-                      <Badge size="sm" variant="light">{r.slot}</Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm" fw={500}>{r.players?.name}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs" c="dimmed">{r.teams?.name}</Text>
-                    </Table.Td>
-                    <Table.Td style={{ textAlign: 'right' }}>
-                      <Badge color={score > 0 ? 'green' : 'gray'}>
-                        {score.toFixed(1)}
-                      </Badge>
-                    </Table.Td>
-                  </Table.Tr>
-                )
-              })}
-            </Table.Tbody>
-          </Table>
+          <Box style={{ flex: 1, overflow: 'auto' }}>
+            <Table striped highlightOnHover>
+              <Table.Thead style={{ position: 'sticky', top: 0, background: 'white', zIndex: 1 }}>
+                <Table.Tr>
+                  <Table.Th style={{ padding: '1rem', width: '120px' }}><Text size="lg" fw={700}>Slot</Text></Table.Th>
+                  <Table.Th style={{ padding: '1rem' }}><Text size="lg" fw={700}>Player</Text></Table.Th>
+                  <Table.Th style={{ padding: '1rem', width: '120px' }}><Text size="lg" fw={700}>Team</Text></Table.Th>
+                  <Table.Th style={{ textAlign: 'right', padding: '1rem', width: '100px' }}><Text size="lg" fw={700}>Score</Text></Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {rows.map(r => {
+                  const score = r.stats ? calculateScore(r.stats) : 0
+                  return (
+                    <Table.Tr key={r.slot}>
+                      <Table.Td style={{ padding: '1rem', width: '120px' }}>
+                        <Badge size="lg" variant="light" style={{ fontSize: '1rem', padding: '0.5rem 0.75rem' }}>
+                          {r.slot}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td style={{ padding: '1rem' }}>
+                        <Title order={2} size="h2" fw={600}>{r.players?.name}</Title>
+                      </Table.Td>
+                      <Table.Td style={{ padding: '1rem', width: '120px' }}>
+                        <Text size="lg" c="dimmed">{r.teams?.name}</Text>
+                      </Table.Td>
+                      <Table.Td style={{ textAlign: 'right', padding: '1rem', width: '100px' }}>
+                        <Badge size="lg" color={score > 0 ? 'green' : 'gray'} style={{ fontSize: '1.1rem', padding: '0.5rem 0.75rem' }}>
+                          {score.toFixed(1)}
+                        </Badge>
+                      </Table.Td>
+                    </Table.Tr>
+                  )
+                })}
+              </Table.Tbody>
+            </Table>
+          </Box>
 
-          <Group justify="apart">
-            <Text fw={700}>Total:</Text>
-            <Badge size="lg" color="blue">
+          <Group 
+            justify="space-between" 
+            p="xl" 
+            style={{ 
+              background: 'var(--mantine-color-blue-0)', 
+              borderTop: '2px solid var(--mantine-color-blue-3)',
+              minHeight: '80px'
+            }}
+          >
+            <Text size="xxl" fw={700}>Total:</Text>
+            <Badge size="xl" color="blue" style={{ fontSize: '1.5rem', padding: '0.75rem 1.25rem' }}>
               {rows.reduce((sum, r) => sum + (r.stats ? calculateScore(r.stats) : 0), 0).toFixed(1)}
             </Badge>
           </Group>
