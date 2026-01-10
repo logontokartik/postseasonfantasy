@@ -214,10 +214,14 @@ export default function Leaderboard() {
       <Modal
         opened={modalOpened}
         onClose={() => setModalOpened(false)}
-        title={<Text size="xxl" fw={700}>{selected?.name}'s Roster</Text>}
+        title={<Title order={1} size="h1" fw={700}>{selected?.name}'s Roster</Title>}
         size="xl"
         fullScreen={{ base: true, sm: false }}
         padding={0}
+        closeButtonProps={{
+          size: 'xl',
+          iconSize: 32
+        }}
         styles={{
           body: { 
             padding: '0',
@@ -232,7 +236,11 @@ export default function Leaderboard() {
             padding: '1.5rem',
             borderBottom: '1px solid var(--mantine-color-gray-3)'
           },
-          title: { fontSize: '1.75rem' }
+          title: { fontSize: '1.75rem' },
+          close: {
+            width: '48px',
+            height: '48px'
+          }
         }}
       >
         <Stack gap="0" style={{ height: '100%', flex: 1 }}>
