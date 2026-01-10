@@ -28,31 +28,43 @@ export default function Leaderboard() {
 
   async function loadLeaderboard() {
     setLoading(true)
-    const ures = await supabase.from('users').select('id,name,is_locked')
-    const list = ures.data || []
+    
+    // Fetch all users, picks, and stats in parallel (3 queries total)
+    const [usersRes, picksRes, statsRes] = await Promise.all([
+      supabase.from('users').select('id,name,is_locked'),
+      supabase.from('user_picks').select('user_id,player_id'),
+      supabase.from('player_stats').select('*')
+    ])
 
-    const ranked = []
-    for (const u of list) {
-      const stats = await supabase
-        .from('player_stats')
-        .select('*')
-        .in(
-          'player_id',
-          (
-            await supabase
-              .from('user_picks')
-              .select('player_id')
-              .eq('user_id', u.id)
-          ).data.map(p => p.player_id)
-        )
+    const users = usersRes.data || []
+    const allPicks = picksRes.data || []
+    const allStats = statsRes.data || []
 
-      const total = (stats.data || []).reduce(
-        (s, ps) => s + calculateScore(ps),
-        0
-      )
+    // Create a map of player_id -> stats for quick lookup
+    const statsMap = {}
+    allStats.forEach(stat => {
+      if (!statsMap[stat.player_id]) {
+        statsMap[stat.player_id] = []
+      }
+      statsMap[stat.player_id].push(stat)
+    })
 
-      ranked.push({ ...u, total })
-    }
+    // Calculate total score for each user
+    const ranked = users.map(user => {
+      // Get this user's picks
+      const userPicks = allPicks.filter(p => p.user_id === user.id)
+      
+      // Calculate total score across all their players
+      let total = 0
+      userPicks.forEach(pick => {
+        const playerStats = statsMap[pick.player_id] || []
+        playerStats.forEach(stat => {
+          total += calculateScore(stat)
+        })
+      })
+
+      return { ...user, total }
+    })
 
     ranked.sort((a, b) => b.total - a.total)
     setUsers(ranked)
