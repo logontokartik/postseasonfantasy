@@ -5,7 +5,7 @@ import { calculateScore } from '../utils/scoring'
 import { useAdminAuth } from '../context/AdminAuth'
 import { 
   Container, Title, Card, Button, Table, Stack, Box, Badge, Group, 
-  Tabs, Loader, ActionIcon, Grid, Text
+  Tabs, Loader, ActionIcon, Grid, Text, Modal, Select
 } from '@mantine/core'
 import { IconTrash } from '@tabler/icons-react'
 
@@ -21,6 +21,8 @@ export default function Leaderboard() {
   const [selected, setSelected] = useState(null)
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
+  const [modalOpened, setModalOpened] = useState(false)
+  const [selectedWeek, setSelectedWeek] = useState('wildcard')
   const { isAuthenticated } = useAdminAuth()
   const nav = useNavigate()
 
@@ -54,24 +56,36 @@ export default function Leaderboard() {
 
   async function selectUser(u) {
     setSelected(u)
+    setModalOpened(true)
+    await loadUserStats(u, selectedWeek)
+  }
 
+  async function loadUserStats(user, week) {
     const picks = await supabase
       .from('user_picks')
       .select('slot, player_id, players(name), teams(name)')
-      .eq('user_id', u.id)
+      .eq('user_id', user.id)
 
     const stats = await supabase
       .from('player_stats')
       .select('*')
+      .eq('week', week)
       .in('player_id', picks.data.map(p => p.player_id))
 
     const merged = picks.data.map(p => ({
       ...p,
-      stats: stats.data.filter(s => s.player_id === p.player_id),
+      stats: stats.data.find(s => s.player_id === p.player_id) || {},
     }))
 
     setRows(merged)
   }
+
+  // Reload stats when week changes
+  useEffect(() => {
+    if (selected && modalOpened) {
+      loadUserStats(selected, selectedWeek)
+    }
+  }, [selectedWeek])
 
   async function deleteUser(u) {
     if (!confirm(`Are you sure you want to delete ${u.name}? This cannot be undone.`)) return
@@ -144,18 +158,18 @@ export default function Leaderboard() {
               <Text c="dimmed">Loading leaderboard…</Text>
             </Group>
           ) : (
-            <Grid gutter="md">
+            <Grid gutter="md" justify="center">
               {/* Leaderboard List */}
-              <Grid.Col span={{ base: 12, lg: 3 }}>
+              <Grid.Col span={{ base: 12, sm: 10, md: 8, lg: 6 }}>
                 <Card shadow="sm" radius="md" withBorder p="md">
-                  <Title order={3} size="h4" mb="md">Rankings</Title>
-                  <Stack gap="xs">
+                  <Title order={3} size="h3" mb="md">Rankings</Title>
+                  <Stack gap="sm">
                     {users.map((u, i) => (
                       <Card
                         key={u.id}
                         bg={selected?.id === u.id ? 'blue.0' : 'white'}
                         withBorder
-                        p="sm"
+                        p="md"
                         radius="md"
                         style={{ 
                           cursor: 'pointer',
@@ -164,15 +178,13 @@ export default function Leaderboard() {
                         onClick={() => selectUser(u)}
                       >
                         <Group justify="space-between" wrap="nowrap">
-                          <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                            <Badge size="sm" variant="filled">#{i + 1}</Badge>
-                            <Text size="sm" fw={selected?.id === u.id ? 700 : 500} truncate>
-                              {u.name}
-                            </Text>
-                            {u.is_locked && <Text size="xs">🔒</Text>}
+                          <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                            <Badge size="lg" variant="filled">#{i + 1}</Badge>
+                            <Text size="lg" fw={selected?.id === u.id ? 700 : 500} truncate>{u.name}</Text>
+                            {u.is_locked && <Text size="md">🔒</Text>}
                           </Group>
-                          <Group gap="xs" wrap="nowrap">
-                            <Text size="sm" fw={600}>{u.total.toFixed(1)}</Text>
+                          <Group gap="sm" wrap="nowrap">
+                            <Text size="lg" fw={600}>{u.total.toFixed(1)}</Text>
                             {isAuthenticated && (
                               <ActionIcon
                                 size="sm"
@@ -193,55 +205,73 @@ export default function Leaderboard() {
                   </Stack>
                 </Card>
               </Grid.Col>
-
-              {/* Week Breakdown */}
-              <Grid.Col span={{ base: 12, lg: 9 }}>
-                {!selected ? (
-                  <Card shadow="sm" radius="md" withBorder p="xl">
-                    <Text c="dimmed" ta="center">Select a user to view their weekly breakdown</Text>
-                  </Card>
-                ) : (
-                  <Card shadow="sm" radius="md" withBorder p="md">
-                    <Title order={3} size="h4" mb="md">
-                      {selected.name}'s Breakdown
-                    </Title>
-                    <Grid gutter="md">
-                      {WEEKS.map(w => (
-                        <Grid.Col key={w.key} span={{ base: 12, sm: 6, md: 3 }}>
-                          <Card bg="gray.0" withBorder p="md" radius="md">
-                            <Group justify="space-between" mb="sm">
-                              <Text fw={700} size="sm">{w.label}</Text>
-                              <Badge>{weekTotal(w.key).toFixed(1)}</Badge>
-                            </Group>
-                            <Stack gap="xs">
-                              {rows.map(r => {
-                                const ps = r.stats.find(x => x.week === w.key)
-                                const score = ps ? calculateScore(ps) : 0
-
-                                return (
-                                  <Box key={r.slot + w.key}>
-                                    <Group justify="space-between" wrap="nowrap">
-                                      <Box style={{ minWidth: 0, flex: 1 }}>
-                                        <Text size="xs" truncate>{r.players.name}</Text>
-                                        <Text size="xs" c="dimmed" truncate>{r.teams.name}</Text>
-                                      </Box>
-                                      <Text size="xs" fw={600}>{score.toFixed(1)}</Text>
-                                    </Group>
-                                  </Box>
-                                )
-                              })}
-                            </Stack>
-                          </Card>
-                        </Grid.Col>
-                      ))}
-                    </Grid>
-                  </Card>
-                )}
-              </Grid.Col>
             </Grid>
           )}
         </Stack>
       </Container>
+
+      {/* User Details Modal */}
+      <Modal
+        opened={modalOpened}
+        onClose={() => setModalOpened(false)}
+        title={<Text size="xl" fw={700}>{selected?.name}'s Roster</Text>}
+        size="lg"
+      >
+        <Stack gap="md">
+          <Select
+            label="Select Week"
+            value={selectedWeek}
+            onChange={setSelectedWeek}
+            data={[
+              { value: 'wildcard', label: 'Wild Card' },
+              { value: 'divisional', label: 'Divisional' },
+              { value: 'conference', label: 'Conference' },
+              { value: 'superbowl', label: 'Super Bowl' }
+            ]}
+          />
+
+          <Table striped highlightOnHover>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Slot</Table.Th>
+                <Table.Th>Player</Table.Th>
+                <Table.Th>Team</Table.Th>
+                <Table.Th style={{ textAlign: 'right' }}>Score</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {rows.map(r => {
+                const score = r.stats ? calculateScore(r.stats) : 0
+                return (
+                  <Table.Tr key={r.slot}>
+                    <Table.Td>
+                      <Badge size="sm" variant="light">{r.slot}</Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" fw={500}>{r.players?.name}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="xs" c="dimmed">{r.teams?.name}</Text>
+                    </Table.Td>
+                    <Table.Td style={{ textAlign: 'right' }}>
+                      <Badge color={score > 0 ? 'green' : 'gray'}>
+                        {score.toFixed(1)}
+                      </Badge>
+                    </Table.Td>
+                  </Table.Tr>
+                )
+              })}
+            </Table.Tbody>
+          </Table>
+
+          <Group justify="apart">
+            <Text fw={700}>Total:</Text>
+            <Badge size="lg" color="blue">
+              {rows.reduce((sum, r) => sum + (r.stats ? calculateScore(r.stats) : 0), 0).toFixed(1)}
+            </Badge>
+          </Group>
+        </Stack>
+      </Modal>
     </Box>
   )
 }
