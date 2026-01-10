@@ -120,17 +120,72 @@ export default function Admin() {
           fg_yards: r.fg_yards
         }))
 
+      // Save player stats
       for (const update of updates) {
         const { id, ...stats } = update
         await supabase.from('player_stats').update(stats).eq('id', id)
       }
 
+      // Recalculate user scores for this week
+      await recalculateUserScores()
+
       setModifiedRows(new Set())
-      alert('Stats saved successfully!')
+      alert('Stats saved and user scores updated successfully!')
     } catch (e) {
       alert('Error saving stats: ' + e.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function recalculateUserScores() {
+    // Get all users
+    const { data: users } = await supabase.from('users').select('id')
+    if (!users) return
+
+    // Get all picks and stats for this week
+    const { data: allPicks } = await supabase.from('user_picks').select('user_id,player_id')
+    const { data: allStats } = await supabase
+      .from('player_stats')
+      .select('*')
+      .eq('week', week)
+
+    if (!allPicks || !allStats) return
+
+    // Create stats map for quick lookup
+    const statsMap = {}
+    allStats.forEach(stat => {
+      if (!statsMap[stat.player_id]) {
+        statsMap[stat.player_id] = []
+      }
+      statsMap[stat.player_id].push(stat)
+    })
+
+    // Calculate score for each user
+    const scoreColumnMap = {
+      wildcard: 'wildcard_score',
+      divisional: 'divisional_score',
+      conference: 'conference_score',
+      superbowl: 'superbowl_score'
+    }
+    const scoreColumn = scoreColumnMap[week]
+
+    for (const user of users) {
+      const userPicks = allPicks.filter(p => p.user_id === user.id)
+      let total = 0
+
+      userPicks.forEach(pick => {
+        const playerStats = statsMap[pick.player_id] || []
+        playerStats.forEach(stat => {
+          total += calculateScore(stat)
+        })
+      })
+
+      // Update user's weekly score
+      await supabase
+        .from('users')
+        .update({ [scoreColumn]: total })
+        .eq('id', user.id)
     }
   }
 

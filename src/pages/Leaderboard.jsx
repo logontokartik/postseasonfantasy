@@ -29,42 +29,21 @@ export default function Leaderboard() {
   async function loadLeaderboard() {
     setLoading(true)
     
-    // Fetch all users, picks, and stats in parallel (3 queries total)
-    const [usersRes, picksRes, statsRes] = await Promise.all([
-      supabase.from('users').select('id,name,is_locked'),
-      supabase.from('user_picks').select('user_id,player_id'),
-      supabase.from('player_stats').select('*')
-    ])
+    // Fetch users with their cached weekly scores
+    const { data: users } = await supabase
+      .from('users')
+      .select('id,name,is_locked,wildcard_score,divisional_score,conference_score,superbowl_score')
 
-    const users = usersRes.data || []
-    const allPicks = picksRes.data || []
-    const allStats = statsRes.data || []
+    const usersList = users || []
 
-    // Create a map of player_id -> stats for quick lookup
-    const statsMap = {}
-    allStats.forEach(stat => {
-      if (!statsMap[stat.player_id]) {
-        statsMap[stat.player_id] = []
-      }
-      statsMap[stat.player_id].push(stat)
-    })
-
-    // Calculate total score for each user
-    const ranked = users.map(user => {
-      // Get this user's picks
-      const userPicks = allPicks.filter(p => p.user_id === user.id)
-      
-      // Calculate total score across all their players
-      let total = 0
-      userPicks.forEach(pick => {
-        const playerStats = statsMap[pick.player_id] || []
-        playerStats.forEach(stat => {
-          total += calculateScore(stat)
-        })
-      })
-
-      return { ...user, total }
-    })
+    // Calculate total score as sum of all weekly scores
+    const ranked = usersList.map(user => ({
+      ...user,
+      total: (user.wildcard_score || 0) + 
+             (user.divisional_score || 0) + 
+             (user.conference_score || 0) + 
+             (user.superbowl_score || 0)
+    }))
 
     ranked.sort((a, b) => b.total - a.total)
     setUsers(ranked)
