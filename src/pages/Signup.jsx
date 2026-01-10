@@ -1,6 +1,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../supabase'
+import { Card, Tabs } from '@mantine/core'
 import { SLOTS } from '../data/positions'
 import { validateRoster } from '../utils/validatePicks'
 import { useNavigate, Link } from 'react-router-dom'
@@ -18,6 +19,7 @@ export default function Signup(){
   const [accessCode, setAccessCode] = useState('')
   const [userId, setUserId] = useState(null)
   const [locked, setLocked] = useState(false)
+  const [leagueStarted, setLeagueStarted] = useState(false)
   const nav=useNavigate()
 
   const slotCfg = useMemo(() => SLOTS.find(s => s.key === slot), [slot])
@@ -27,9 +29,21 @@ export default function Signup(){
     (async () => {
       setLoading(true)
       const t = await supabase.from('teams').select('*').order('seed', { ascending: true })
-      const p = await supabase.from('players').select('*').order('position', { ascending: true })
+      const p = await supabase.from('players').select('id,name,position,team_id')
       setTeams(t.data || [])
       setPlayers(p.data || [])
+      
+      // Check if league has started (any user has locked picks)
+      const { data: lockedUsers } = await supabase
+        .from('users')
+        .select('is_locked')
+        .eq('is_locked', true)
+        .limit(1)
+      
+      if (lockedUsers && lockedUsers.length > 0) {
+        setLeagueStarted(true)
+      }
+      
       setLoading(false)
     })()
   },[])
@@ -151,22 +165,34 @@ export default function Signup(){
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="max-w-6xl mx-auto p-4">
-        <div className="flex items-start justify-between gap-3">
+        {/* Navigation Tabs */}
+        <Card shadow="sm" radius="md" withBorder mb="md" p="md">
+          <Tabs defaultValue="signup" variant="pills">
+            <Tabs.List mb="sm">
+              <Tabs.Tab value="signup" fz="lg" fw={600}>Signup</Tabs.Tab>
+              <Tabs.Tab value="leaderboard" fz="lg" fw={600} onClick={() => nav('/leaderboard')}>Leaderboard</Tabs.Tab>
+              <Tabs.Tab value="help" fz="lg" fw={600} onClick={() => nav('/help')}>Help / Rules</Tabs.Tab>
+              <Tabs.Tab value="admin" fz="lg" fw={600} onClick={() => nav('/admin')}>Admin</Tabs.Tab>
+            </Tabs.List>
+          </Tabs>
           <div>
             <h1 className="text-2xl font-bold">NFL Playoff Pool</h1>
             <p className="text-sm text-gray-600 mt-1">
               Pick 14 slots with <span className="font-semibold">one player per team</span>. Re-clicking a team moves that team's pick to the currently selected slot.
             </p>
           </div>
-          <div className="flex flex-col items-end">
-            <Link className="text-xs underline text-blue-600 mb-1" to="/help">Help / Rules</Link>
-            <Link className="text-xs underline text-gray-500" to="/admin">Admin</Link>
-          </div>
-        </div>
+        </Card>
 
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Main */}
           <div className="lg:col-span-2 bg-white rounded-2xl shadow p-4">
+            {leagueStarted && !submitted && (
+              <div className="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+                <strong className="font-bold">League Started! </strong>
+                <span className="block sm:inline">New signups are no longer accepted. The league has begun.</span>
+              </div>
+            )}
+
             {submitted && (
               <div className="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
                 <strong className="font-bold">Success! </strong>
@@ -206,7 +232,7 @@ export default function Signup(){
               </div>
             )}
 
-            <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${submitted || locked ? 'opacity-50 pointer-events-none' : ''}`}>
+            <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${submitted || locked || leagueStarted ? 'opacity-50 pointer-events-none' : ''}`}>
               <div>
                 <label className="text-sm font-semibold">Your Name</label>
                 <input
@@ -214,7 +240,7 @@ export default function Signup(){
                   value={name}
                   onChange={e=>setName(e.target.value)}
                   placeholder="e.g., Kartik"
-                  disabled={submitted || locked}
+                  disabled={submitted || locked || leagueStarted}
                 />
               </div>
               <div>
@@ -223,7 +249,7 @@ export default function Signup(){
                   className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={slot}
                   onChange={e=>setSlot(e.target.value)}
-                  disabled={submitted || locked}
+                  disabled={submitted || locked || leagueStarted}
                 >
                   {SLOTS.map(s => <option key={s.key} value={s.key}>{s.key}</option>)}
                 </select>
@@ -242,7 +268,7 @@ export default function Signup(){
             {loading ? (
               <div className="mt-5 text-gray-600">Loading teams…</div>
             ) : (
-              <div className={`mt-5 grid grid-cols-1 md:grid-cols-2 gap-3 ${submitted || locked ? 'opacity-50 pointer-events-none' : ''}`}>
+              <div className={`mt-5 grid grid-cols-1 md:grid-cols-2 gap-3 ${submitted || locked || leagueStarted ? 'opacity-50 pointer-events-none' : ''}`}>
                 {teams.map(t => {
                   const teamPicked = pickedTeamIds.has(t.id)
                   const eligible = players.filter(p => p.team_id === t.id && slotCfg.allowed.includes(p.position))
@@ -282,12 +308,12 @@ export default function Signup(){
 
             {!submitted && !locked && (
               <button
-                onClick={submit}
-                disabled={saving || Object.keys(picks).length < 14}
-                className="mt-5 w-full rounded-xl bg-blue-600 text-white font-semibold py-3 disabled:opacity-60"
-              >
-                {saving ? 'Submitting…' : Object.keys(picks).length < 14 ? `Pick ${14 - Object.keys(picks).length} more` : (userId ? 'Update Picks' : 'Submit (Lock Picks)')}
-              </button>
+              onClick={submit}
+              disabled={Object.keys(picks).length < 14 || saving || submitted || locked || leagueStarted}
+              className="mt-5 w-full rounded-xl bg-blue-600 text-white font-semibold py-3 disabled:opacity-50 disabled:bg-gray-400 hover:bg-blue-700 transition"
+            >
+              {saving ? 'Submitting…' : submitted ? 'Submitted ✓' : locked ? 'Picks Locked' : leagueStarted ? 'League Started' : 'Submit Roster'}
+            </button>
             )}
 
             <div className="mt-2 text-xs text-gray-500">

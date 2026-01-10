@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { calculateScore } from '../utils/scoring'
+import { useAdminAuth } from '../context/AdminAuth'
 import { 
   Container, Title, Card, Button, Table, Stack, Box, Badge, Group, 
   Tabs, Loader, ActionIcon, Grid, Text
@@ -20,6 +21,7 @@ export default function Leaderboard() {
   const [selected, setSelected] = useState(null)
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
+  const { isAuthenticated } = useAdminAuth()
   const nav = useNavigate()
 
   useEffect(() => {
@@ -124,14 +126,16 @@ export default function Leaderboard() {
         <Stack gap="md">
           <Group justify="space-between">
             <Title order={1} size="h2">NFL Playoff Leaderboard</Title>
-            <Group gap="xs">
-              <Button size="sm" color="red" variant="light" onClick={() => setGlobalLock(true)}>
-                Lock All
-              </Button>
-              <Button size="sm" color="green" variant="light" onClick={() => setGlobalLock(false)}>
-                Unlock All
-              </Button>
-            </Group>
+            {isAuthenticated && (
+              <Group gap="xs">
+                <Button size="sm" color="red" variant="light" onClick={() => setGlobalLock(true)}>
+                  Lock All
+                </Button>
+                <Button size="sm" color="green" variant="light" onClick={() => setGlobalLock(false)}>
+                  Unlock All
+                </Button>
+              </Group>
+            )}
           </Group>
 
           {loading ? (
@@ -169,17 +173,19 @@ export default function Leaderboard() {
                           </Group>
                           <Group gap="xs" wrap="nowrap">
                             <Text size="sm" fw={600}>{u.total.toFixed(1)}</Text>
-                            <ActionIcon
-                              size="sm"
-                              color="red"
-                              variant="subtle"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                deleteUser(u)
-                              }}
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
+                            {isAuthenticated && (
+                              <ActionIcon
+                                size="sm"
+                                color="red"
+                                variant="subtle"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  deleteUser(u)
+                                }}
+                              >
+                                <IconTrash size={16} />
+                              </ActionIcon>
+                            )}
                           </Group>
                         </Group>
                       </Card>
