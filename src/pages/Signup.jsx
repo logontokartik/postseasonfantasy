@@ -306,7 +306,16 @@ export default function Signup(){
                 <div key={s.key} className={`flex items-center justify-between rounded-xl px-3 py-2 border ${slot === s.key ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white'}`}>
                   <div className="text-sm font-semibold">{s.key}</div>
                   <div className="text-sm text-gray-700 truncate max-w-[180px] text-right">
-                    {picks[s.key]?.name || <span className="text-gray-400">—</span>}
+                    {picks[s.key] ? (
+                      <div>
+                        <div className="font-medium">{picks[s.key].name}</div>
+                        <div className="text-xs text-gray-500">
+                          {teams.find(t => t.id === picks[s.key].team_id)?.name || ''}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
                   </div>
                 </div>
               ))}
