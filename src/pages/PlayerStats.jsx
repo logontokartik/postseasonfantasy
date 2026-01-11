@@ -182,7 +182,7 @@ export default function PlayerStats() {
                       </Table.Th>
                     ))}
                     <Table.Th 
-                      style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                      style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none', minWidth: '90px' }}
                       onClick={() => handleSort('score')}
                     >
                       <Group gap="xs" justify="center">
@@ -231,8 +231,10 @@ export default function PlayerStats() {
                           </Table.Td>
                         ))}
 
-                        <Table.Td style={{ textAlign: 'center' }}>
-                          <Badge color={eliminated ? 'gray' : 'blue'}>{score.toFixed(2)}</Badge>
+                        <Table.Td style={{ textAlign: 'center', minWidth: '90px', whiteSpace: 'nowrap' }}>
+                          <Badge color={eliminated ? 'gray' : 'blue'} style={{ padding: '0.4rem 0.6rem' }}>
+                            {score.toFixed(2)}
+                          </Badge>
                         </Table.Td>
                       </Table.Tr>
                     )
