@@ -39,6 +39,8 @@ export default function Admin() {
     load()
   }, [week])
 
+  const WEEK_ORDER = ['wildcard', 'divisional', 'conference', 'superbowl']
+
   async function load() {
     const res = await supabase
       .from('player_stats')
@@ -58,12 +60,18 @@ export default function Admin() {
           name,
           position,
           team_id,
-          teams(name, seed)
+          teams(name, seed, eliminated_week)
         )
       `)
       .eq('week', week)
     
     sortRows(res.data || [])
+  }
+
+  function isPlayerEliminated(row) {
+    const eliminatedWeek = row.players?.teams?.eliminated_week
+    if (!eliminatedWeek) return false
+    return WEEK_ORDER.indexOf(week) > WEEK_ORDER.indexOf(eliminatedWeek)
   }
 
   function sortRows(data) {
@@ -78,6 +86,9 @@ export default function Admin() {
       } else if (sortBy === 'position') {
         compareA = positionOrder[a.players?.position] || 99
         compareB = positionOrder[b.players?.position] || 99
+      } else if (sortBy === 'score') {
+        compareA = calculateScore(a)
+        compareB = calculateScore(b)
       } else { // team
         compareA = a.players?.teams?.name || ''
         compareB = b.players?.teams?.name || ''
@@ -308,7 +319,9 @@ export default function Admin() {
           <Tabs defaultValue="admin" variant="pills">
             <Tabs.List mb="md">
               <Tabs.Tab value="admin" fz="lg" fw={600}>Admin Scoring</Tabs.Tab>
+              <Tabs.Tab value="teams" fz="lg" fw={600} onClick={() => nav('/teams')}>Team Management</Tabs.Tab>
               <Tabs.Tab value="leaderboard" fz="lg" fw={600} onClick={() => nav('/leaderboard')}>Leaderboard</Tabs.Tab>
+              <Tabs.Tab value="stats" fz="lg" fw={600} onClick={() => nav('/stats')}>Player Stats</Tabs.Tab>
               <Tabs.Tab value="signup" fz="lg" fw={600} onClick={() => nav('/signup')}>Signup</Tabs.Tab>
               <Tabs.Tab value="help" fz="lg" fw={600} onClick={() => nav('/help')}>Help / Rules</Tabs.Tab>
             </Tabs.List>
@@ -361,9 +374,9 @@ export default function Admin() {
           </Group>
 
           <Card shadow="sm" radius="md" withBorder p="md">
-            <Box style={{ overflowX: 'auto' }}>
+            <Box style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '70vh' }}>
               <Table striped highlightOnHover>
-                <Table.Thead>
+                <Table.Thead style={{ position: 'sticky', top: 0, backgroundColor: 'white', zIndex: 1 }}>
                   <Table.Tr>
                     <Table.Th 
                       style={{ cursor: 'pointer', userSelect: 'none' }}
@@ -397,21 +410,45 @@ export default function Admin() {
                         {f.label}
                       </Table.Th>
                     ))}
-                    <Table.Th style={{ textAlign: 'center' }}>Score</Table.Th>
+                    <Table.Th 
+                      style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleSort('score')}
+                    >
+                      <Group gap="xs" justify="center">
+                        <Text>Score</Text>
+                        {sortBy === 'score' && <Text size="xs">{sortDir === 'asc' ? '↑' : '↓'}</Text>}
+                      </Group>
+                    </Table.Th>
                   </Table.Tr>
                 </Table.Thead>
 
                 <Table.Tbody>
                   {rows.map((r) => {
                     const score = calculateScore(r)
+                    const eliminated = isPlayerEliminated(r)
 
                     return (
-                      <Table.Tr key={r.id}>
+                      <Table.Tr 
+                        key={r.id}
+                        style={{ 
+                          backgroundColor: eliminated ? '#fff0f0' : undefined,
+                          opacity: eliminated ? 0.7 : 1
+                        }}
+                      >
                         <Table.Td>
-                          <Text size="sm" fw={500}>{r.players?.name}</Text>
+                          <Text 
+                            size="sm" 
+                            fw={500}
+                            style={{ textDecoration: eliminated ? 'line-through' : 'none' }}
+                          >
+                            {r.players?.name}
+                          </Text>
                         </Table.Td>
                         <Table.Td>
-                          <Text size="sm">{r.players?.teams?.name}</Text>
+                          <Group gap="xs">
+                            <Text size="sm">{r.players?.teams?.name}</Text>
+                            {eliminated && <Badge size="xs" color="red">OUT</Badge>}
+                          </Group>
                         </Table.Td>
                         <Table.Td>
                           <Badge size="sm" variant="light">{r.players?.position}</Badge>
@@ -425,15 +462,19 @@ export default function Admin() {
                               size="xs"
                               style={{ width: 70 }}
                               hideControls
+                              disabled={eliminated}
                               styles={{
-                                input: { textAlign: 'center' }
+                                input: { 
+                                  textAlign: 'center',
+                                  backgroundColor: eliminated ? '#f0f0f0' : undefined
+                                }
                               }}
                             />
                           </Table.Td>
                         ))}
 
                         <Table.Td style={{ textAlign: 'center' }}>
-                          <Badge color="blue">
+                          <Badge color={eliminated ? 'gray' : 'blue'}>
                             {score.toFixed(2)}
                           </Badge>
                         </Table.Td>

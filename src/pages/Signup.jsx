@@ -171,6 +171,7 @@ export default function Signup(){
             <Tabs.List mb="sm">
               <Tabs.Tab value="signup" fz="lg" fw={600}>Signup</Tabs.Tab>
               <Tabs.Tab value="leaderboard" fz="lg" fw={600} onClick={() => nav('/leaderboard')}>Leaderboard</Tabs.Tab>
+              <Tabs.Tab value="stats" fz="lg" fw={600} onClick={() => nav('/stats')}>Player Stats</Tabs.Tab>
               <Tabs.Tab value="help" fz="lg" fw={600} onClick={() => nav('/help')}>Help / Rules</Tabs.Tab>
               <Tabs.Tab value="admin" fz="lg" fw={600} onClick={() => nav('/admin')}>Admin</Tabs.Tab>
             </Tabs.List>
