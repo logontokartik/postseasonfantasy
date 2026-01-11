@@ -16,19 +16,14 @@ const WEEKS = [
 ]
 
 const STAT_FIELDS = [
-  { key: 'catches', label: 'Catches' },
-  { key: 'pass_yards', label: 'Pass Yds' },
-  { key: 'rush_rec_yards', label: 'Rush/Rec Yds' },
-  { key: 'tds', label: 'TDs' },
-  { key: 'turnovers', label: 'TO' },
+  { key: 'catches_sacks', label: 'CTCH/SCK/XP/DFP' },
+  { key: 'pass_yards', label: 'PSS' },
+  { key: 'rush_rec_fg_yards', label: 'RSH/REC/FG Yds' },
+  { key: 'tds', label: 'TD' },
+  { key: 'turnovers', label: 'INT+FL' },
   { key: 'two_pt', label: '2PT' },
-  { key: 'misc_td', label: 'Misc TD' },
-  { key: 'return_yards', label: 'Return Yds' },
-  { key: 'sacks', label: 'Sacks' },
-  { key: 'def_turnovers', label: 'Def TO' },
-  { key: 'safety', label: 'Safety' },
-  { key: 'points_allowed', label: 'PA' },
-  { key: 'fg_yards', label: 'FG Yds' },
+  { key: 'def_turnovers_misc', label: 'INT+FF+SFTY+XP RTN+BF' },
+  { key: 'return_yards', label: 'RTN YDS' },
 ]
 
 export default function Admin() {
@@ -44,33 +39,27 @@ export default function Admin() {
 
   async function load() {
     const res = await supabase
-  .from('player_stats')
-  .select(`
-    id,
-    week,
-    catches,
-    pass_yards,
-    rush_rec_yards,
-    tds,
-    turnovers,
-    two_pt,
-    misc_td,
-    return_yards,
-    sacks,
-    def_turnovers,
-    safety,
-    points_allowed,
-    fg_yards,
-    players (
-      name,
-      position,
-      teams (
-        name
-      )
-    )
-  `)
-  .eq('week', week)
-
+      .from('player_stats')
+      .select(`
+        id,
+        week,
+        catches_sacks,
+        pass_yards,
+        rush_rec_fg_yards,
+        tds,
+        turnovers,
+        two_pt,
+        def_turnovers_misc,
+        return_yards,
+        player_id,
+        players(
+          name,
+          position,
+          team_id,
+          teams(name, seed)
+        )
+      `)
+      .eq('week', week)
     // Custom sort: by team, then by position order
     const positionOrder = { QB: 1, RB: 2, WR: 3, TE: 4, K: 5, DEF: 6 }
     const sorted = (res.data || []).sort((a, b) => {
@@ -105,19 +94,14 @@ export default function Admin() {
         .filter(r => modifiedRows.has(r.id))
         .map(r => ({
           id: r.id,
-          catches: r.catches,
+          catches_sacks: r.catches_sacks,
           pass_yards: r.pass_yards,
-          rush_rec_yards: r.rush_rec_yards,
+          rush_rec_fg_yards: r.rush_rec_fg_yards,
           tds: r.tds,
           turnovers: r.turnovers,
           two_pt: r.two_pt,
-          misc_td: r.misc_td,
-          return_yards: r.return_yards,
-          sacks: r.sacks,
-          def_turnovers: r.def_turnovers,
-          safety: r.safety,
-          points_allowed: r.points_allowed,
-          fg_yards: r.fg_yards
+          def_turnovers_misc: r.def_turnovers_misc,
+          return_yards: r.return_yards
         }))
 
       // Save player stats
@@ -194,18 +178,26 @@ export default function Admin() {
     const headers = ['Player', 'Team', 'Position', ...STAT_FIELDS.map(f => f.label)]
     
     // Create CSV rows
-    const csvRows = rows.map(r => [
-      r.players?.name || '',
-      r.players?.teams?.name || '',
-      r.players?.position || '',
-      ...STAT_FIELDS.map(f => r[f.key] ?? 0)
-    ])
+    const csvRows = [headers.join(',')]
+    rows.forEach(r => {
+      const rowData = [
+        `"${r.players?.name || ''}"`,
+        `"${r.players?.teams?.name || ''}"`,
+        r.players?.position || '',
+        r.catches_sacks || 0,
+        r.pass_yards || 0,
+        r.rush_rec_fg_yards || 0,
+        r.tds || 0,
+        r.turnovers || 0,
+        r.two_pt || 0,
+        r.def_turnovers_misc || 0,
+        r.return_yards || 0
+      ]
+      csvRows.push(rowData.join(','))
+    })
 
     // Combine headers and rows
-    const csvContent = [
-      headers.join(','),
-      ...csvRows.map(row => row.join(','))
-    ].join('\n')
+    const csvContent = csvRows.join('\n')
 
     // Create download
     const blob = new Blob([csvContent], { type: 'text/csv' })
@@ -230,40 +222,41 @@ export default function Admin() {
         const lines = text.split('\n').filter(l => l.trim())
         const headers = lines[0].split(',')
         
-        // Find stat column indices
-        const statIndices = {}
-        STAT_FIELDS.forEach(f => {
-          const idx = headers.findIndex(h => h.trim() === f.label)
-          if (idx !== -1) statIndices[f.key] = idx
-        })
-
-        // Parse data rows
         const updatedRows = [...rows]
+        const newModifiedRows = new Set(modifiedRows)
+
         for (let i = 1; i < lines.length; i++) {
           const values = lines[i].split(',')
-          const playerName = values[0]?.trim()
+          const playerName = values[0]?.replace(/"/g, '').trim()
           
-          // Find matching row
-          const rowIndex = updatedRows.findIndex(r => r.players?.name === playerName)
-          if (rowIndex === -1) continue
-
-          // Update stats
-          STAT_FIELDS.forEach(f => {
-            const colIdx = statIndices[f.key]
-            if (colIdx !== undefined) {
-              const value = parseFloat(values[colIdx]) || 0
-              updatedRows[rowIndex] = { ...updatedRows[rowIndex], [f.key]: value }
-              setModifiedRows(prev => new Set(prev).add(updatedRows[rowIndex].id))
+          const rowIndex = updatedRows.findIndex(r => 
+            r.players?.name === playerName
+          )
+          
+          if (rowIndex >= 0) {
+            updatedRows[rowIndex] = {
+              ...updatedRows[rowIndex],
+              catches_sacks: Number(values[3]) || 0,
+              pass_yards: Number(values[4]) || 0,
+              rush_rec_fg_yards: Number(values[5]) || 0,
+              tds: Number(values[6]) || 0,
+              turnovers: Number(values[7]) || 0,
+              two_pt: Number(values[8]) || 0,
+              def_turnovers_misc: Number(values[9]) || 0,
+              return_yards: Number(values[10]) || 0
             }
-          })
+            newModifiedRows.add(updatedRows[rowIndex].id)
+          }
         }
 
         setRows(updatedRows)
-        alert(`CSV imported successfully! ${modifiedRows.size} players updated.`)
+        setModifiedRows(newModifiedRows)
+        alert(`CSV imported successfully! ${newModifiedRows.size} players updated.`)
       } catch (err) {
         alert('Error parsing CSV: ' + err.message)
       }
     }
+
     reader.readAsText(file)
     
     // Reset input so same file can be imported again

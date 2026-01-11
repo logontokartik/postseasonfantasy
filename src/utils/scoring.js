@@ -1,34 +1,31 @@
 export function calculateScore(s) {
   let score = 0;
 
-  // Offense
-  score += (s.catches || 0) * 1;
+  // Combined: Catches/Sacks/XP/DFP
+  // For now treating as combined value at 1 point each
+  score += (s.catches_sacks || 0) * 1;
+
+  // Passing Yards (25 yards = 1 pt)
   score += (s.pass_yards || 0) / 25;
-  score += (s.rush_rec_yards || 0) / 10;
+
+  // Combined: Rush/Rec/FG Yards (10 yards = 1 pt)
+  score += (s.rush_rec_fg_yards || 0) / 10;
+
+  // Touchdowns (6 pts each)
   score += (s.tds || 0) * 6;
+
+  // Turnovers: INT + Fumbles Lost (-2 pts each)
   score -= (s.turnovers || 0) * 2;
+
+  // 2-Point Conversions (2 pts each)
   score += (s.two_pt || 0) * 2;
-  score += (s.misc_td || 0) * 6; // Assuming Misc TD is a TD (6pts)
 
-  // Kicking
-  score += (s.fg_yards || 0) / 10;
+  // Combined: Def TO + Safety + Misc TD (2 pts each)
+  // Note: This combines different scoring events
+  score += (s.def_turnovers_misc || 0) * 2;
 
-  // Defense / Special Teams
+  // Return Yards (20 yards = 1 pt)
   score += (s.return_yards || 0) / 20;
-  score += (s.sacks || 0) * 1;
-  score += (s.def_turnovers || 0) * 2;
-  score += (s.safety || 0) * 2;
-
-  // Points Allowed (only if not null/undefined)
-  if (s.points_allowed !== null && s.points_allowed !== undefined) {
-    const pa = s.points_allowed;
-    if (pa === 0) score += 15;
-    else if (pa <= 6) score += 10;
-    else if (pa <= 13) score += 7;
-    else if (pa <= 25) score += 3;
-    else if (pa <= 35) score -= 1;
-    // 36+ is 0
-  }
 
   return Math.max(0, score);
 }
