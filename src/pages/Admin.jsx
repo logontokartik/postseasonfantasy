@@ -31,6 +31,8 @@ export default function Admin() {
   const [rows, setRows] = useState([])
   const [modifiedRows, setModifiedRows] = useState(new Set())
   const [saving, setSaving] = useState(false)
+  const [sortBy, setSortBy] = useState('team') // 'team', 'player', or 'position'
+  const [sortDir, setSortDir] = useState('asc') // 'asc' or 'desc'
   const nav = useNavigate()
 
   useEffect(() => {
@@ -60,23 +62,59 @@ export default function Admin() {
         )
       `)
       .eq('week', week)
-    // Custom sort: by team, then by position order
-    const positionOrder = { QB: 1, RB: 2, WR: 3, TE: 4, K: 5, DEF: 6 }
-    const sorted = (res.data || []).sort((a, b) => {
-      // First sort by team name
-      const teamA = a.players?.teams?.name || ''
-      const teamB = b.players?.teams?.name || ''
-      if (teamA !== teamB) return teamA.localeCompare(teamB)
-      
-      // Then sort by position
-      const posA = positionOrder[a.players?.position] || 99
-      const posB = positionOrder[b.players?.position] || 99
-      return posA - posB
-    })
+    
+    sortRows(res.data || [])
+  }
 
+  function sortRows(data) {
+    const positionOrder = { QB: 1, RB: 2, WR: 3, TE: 4, K: 5, DEF: 6 }
+    
+    const sorted = [...data].sort((a, b) => {
+      let compareA, compareB
+      
+      if (sortBy === 'player') {
+        compareA = a.players?.name || ''
+        compareB = b.players?.name || ''
+      } else if (sortBy === 'position') {
+        compareA = positionOrder[a.players?.position] || 99
+        compareB = positionOrder[b.players?.position] || 99
+      } else { // team
+        compareA = a.players?.teams?.name || ''
+        compareB = b.players?.teams?.name || ''
+      }
+      
+      const direction = sortDir === 'asc' ? 1 : -1
+      
+      if (typeof compareA === 'string') {
+        return compareA.localeCompare(compareB) * direction
+      } else {
+        return (compareA - compareB) * direction
+      }
+    })
+    
     setRows(sorted)
     setModifiedRows(new Set())
   }
+
+  function handleSort(column) {
+    if (sortBy === column) {
+      // Toggle direction
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+      sortRows(rows)
+    } else {
+      // New column, default to ascending
+      setSortBy(column)
+      setSortDir('asc')
+      sortRows(rows)
+    }
+  }
+
+  // Re-sort when sort settings change
+  useEffect(() => {
+    if (rows.length > 0) {
+      sortRows(rows)
+    }
+  }, [sortBy, sortDir])
 
   function updateStat(id, field, value) {
     setRows(r =>
@@ -324,11 +362,36 @@ export default function Admin() {
 
           <Card shadow="sm" radius="md" withBorder p="md">
             <Box style={{ overflowX: 'auto' }}>
-              <Table highlightOnHover striped withTableBorder withColumnBorders>
+              <Table striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
-                    <Table.Th>Player</Table.Th>
-                    <Table.Th>Team</Table.Th>
+                    <Table.Th 
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleSort('player')}
+                    >
+                      <Group gap="xs">
+                        <Text>Player</Text>
+                        {sortBy === 'player' && <Text size="xs">{sortDir === 'asc' ? '↑' : '↓'}</Text>}
+                      </Group>
+                    </Table.Th>
+                    <Table.Th 
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleSort('team')}
+                    >
+                      <Group gap="xs">
+                        <Text>Team</Text>
+                        {sortBy === 'team' && <Text size="xs">{sortDir === 'asc' ? '↑' : '↓'}</Text>}
+                      </Group>
+                    </Table.Th>
+                    <Table.Th 
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleSort('position')}
+                    >
+                      <Group gap="xs">
+                        <Text>Pos</Text>
+                        {sortBy === 'position' && <Text size="xs">{sortDir === 'asc' ? '↑' : '↓'}</Text>}
+                      </Group>
+                    </Table.Th>
                     {STAT_FIELDS.map(f => (
                       <Table.Th key={f.key} style={{ textAlign: 'center', minWidth: 80 }}>
                         {f.label}
@@ -339,18 +402,19 @@ export default function Admin() {
                 </Table.Thead>
 
                 <Table.Tbody>
-                  {rows.map(r => {
+                  {rows.map((r) => {
                     const score = calculateScore(r)
 
                     return (
                       <Table.Tr key={r.id}>
                         <Table.Td>
                           <Text size="sm" fw={500}>{r.players?.name}</Text>
-                          <Text size="xs" c="dimmed">{r.players?.position}</Text>
                         </Table.Td>
-
                         <Table.Td>
-                          <Text size="sm" c="dimmed">{r.players?.teams?.name}</Text>
+                          <Text size="sm">{r.players?.teams?.name}</Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge size="sm" variant="light">{r.players?.position}</Badge>
                         </Table.Td>
 
                         {STAT_FIELDS.map(f => (
@@ -369,8 +433,8 @@ export default function Admin() {
                         ))}
 
                         <Table.Td style={{ textAlign: 'center' }}>
-                          <Badge size="lg" variant="filled" color="blue">
-                            {score.toFixed(1)}
+                          <Badge color="blue">
+                            {score.toFixed(2)}
                           </Badge>
                         </Table.Td>
                       </Table.Tr>

@@ -27,5 +27,5 @@ export function calculateScore(s) {
   // Return Yards (20 yards = 1 pt)
   score += (s.return_yards || 0) / 20;
 
-  return Math.max(0, score);
+  return Math.round(Math.max(0, score) * 100) / 100;
 }

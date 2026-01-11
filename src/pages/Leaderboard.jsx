@@ -184,7 +184,7 @@ export default function Leaderboard() {
                             {u.is_locked && <Text size="md">🔒</Text>}
                           </Group>
                           <Group gap="sm" wrap="nowrap">
-                            <Text size="lg" fw={600}>{u.total.toFixed(1)}</Text>
+                            <Text size="lg" fw={600}>{u.total.toFixed(2)}</Text>
                             {isAuthenticated && (
                               <ActionIcon
                                 size="sm"
@@ -289,11 +289,11 @@ export default function Leaderboard() {
                       <Table.Td style={{ padding: '1rem', width: '120px' }}>
                         <Text size="lg" c="dimmed">{r.teams?.name}</Text>
                       </Table.Td>
-                      <Table.Td style={{ textAlign: 'right', padding: '1rem', width: '100px' }}>
-                        <Badge size="lg" color={score > 0 ? 'green' : 'gray'} style={{ fontSize: '1.1rem', padding: '0.5rem 0.75rem' }}>
-                          {score.toFixed(1)}
-                        </Badge>
-                      </Table.Td>
+                      <Table.Td style={{ textAlign: 'right', padding: '1rem' }}>
+                      <Badge size="lg" color={score > 0 ? 'green' : 'gray'} style={{ fontSize: '1.1rem', padding: '0.5rem 0.75rem' }}>
+                        {score.toFixed(2)}
+                      </Badge>
+                    </Table.Td>
                     </Table.Tr>
                   )
                 })}
@@ -312,7 +312,7 @@ export default function Leaderboard() {
           >
             <Text size="xxl" fw={700}>Total:</Text>
             <Badge size="xl" color="blue" style={{ fontSize: '1.5rem', padding: '0.75rem 1.25rem' }}>
-              {rows.reduce((sum, r) => sum + (r.stats ? calculateScore(r.stats) : 0), 0).toFixed(1)}
+              {rows.reduce((sum, r) => sum + (r.stats ? calculateScore(r.stats) : 0), 0).toFixed(2)}
             </Badge>
           </Group>
         </Stack>
